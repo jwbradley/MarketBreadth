@@ -6,15 +6,19 @@ Daily market breadth indicator calculator for the S&P 500 and all 11 GICS sector
 
 ## What It Does
 
-Downloads 1 year of daily price data for all 503 S&P 500 constituents (~17 seconds), then calculates:
+Downloads 1 year of daily price and volume data for all 503 S&P 500 constituents (~17 seconds), then calculates:
 
 | Indicator | What It Measures |
 |-----------|-----------------|
 | Advance/Decline Ratio | How many stocks went up vs down today |
+| A/D Line (cumulative) | Running total of net advances — trend shows sustained participation |
 | % Above 50-DMA | Short-term trend health (are most stocks in uptrends?) |
 | % Above 200-DMA | Long-term trend health (are most stocks above their yearly average?) |
+| Up/Down Volume Ratio | Total volume in advancing stocks vs declining stocks — institutional conviction |
 | 52-week Highs | Stocks making new highs (broad strength) |
 | 52-week Lows | Stocks making new lows (broad weakness) |
+| Net Highs - Lows | Difference between new highs and new lows — divergence from index warns of pullback |
+| Breadth Thrust (Zweig) | 10-day EMA of advancing % — extreme surges (from <40% to >61.5% in 10 days) signal new bull markets |
 
 All indicators are calculated for the S&P 500 overall AND each of the 11 GICS sectors individually.
 
@@ -27,6 +31,11 @@ All indicators are calculated for the S&P 500 overall AND each of the 11 GICS se
 - **A/D ratio < 0.5 in a sector** = that sector is in broad-based selling
 - **% above 50-DMA < 30%** = oversold, potential bounce opportunity
 - **% above 50-DMA > 70%** = strong uptrend, ride the wave
+- **Up/Down Volume > 2.0** = strong institutional buying power behind the advance
+- **Up/Down Volume < 0.5** = heavy institutional selling, even if index isn't down much
+- **A/D Line rising while index flat** = hidden strength, accumulation phase
+- **A/D Line falling while index rising** = dangerous divergence, fewer stocks participating
+- **Breadth Thrust crosses 61.5% from below 40% in 10 days** = rare Zweig buy signal (historically very reliable for major bull runs)
 
 ---
 
@@ -183,22 +192,25 @@ python market_breadth_collector.py
 ### Briefing Example:
 
 ```
-## Market Breadth (2026-06-23)
+## Market Breadth (2026-06-24)
 
-**S&P 500 Overall:** 285 advancing / 217 declining (A/D ratio: 1.31)
-- Above 50-DMA: 59.8% (301/503)
-- Above 200-DMA: 62.2% (311/503)
-- 52-week Highs: 23 | Lows: 10
+**S&P 500 Overall:** 359 advancing / 143 declining (A/D ratio: 2.51)
+- A/D Line: 4402 (rising)
+- Above 50-DMA: 63.7% (320/502)
+- Above 200-DMA: 63.5% (317/502)
+- Up/Down Volume Ratio: 1.69
+- 52-week Highs: 27 | Lows: 3 | Net: 24
+- Breadth Thrust: 54.7%
 
 **Sector Breadth (strongest to weakest):**
 
-| Sector                         |     A/D | Ratio |  >50DMA | >200DMA | Highs | Lows |
-|--------------------------------|---------|-------|---------|---------|-------|------|
-| Utilities                      |  27/4   |  6.75 |  83.9% |  83.9% |     3 |    0 |
-| Real Estate                    |  27/4   |  6.75 |  77.4% |  80.6% |     1 |    0 |
-| Consumer Staples               |  29/5   |  5.80 |  60.0% |  62.9% |     1 |    0 |
-| Information Technology         |  22/52  |  0.42 |  59.5% |  63.0% |     0 |    3 |
-| Materials                      |   4/22  |  0.18 |  57.7% |  65.4% |     0 |    0 |
+| Sector                         |     A/D | Ratio |  >50DMA | >200DMA |  UpVol | Net H/L | Thrust |
+|--------------------------------|---------|-------|---------|---------|--------|---------|--------|
+| Consumer Discretionary         |  45/2   | 22.50 |  66.0% |  51.1% |  3.33 |      +2 |  56.3% |
+| Industrials                    |  67/13  |  5.15 |  71.2% |  67.1% |  4.69 |      +6 |  57.3% |
+| Health Care                    |  49/10  |  4.90 |  69.5% |  52.5% |  1.16 |      +4 |  57.6% |
+| Information Technology         |  52/22  |  2.36 |  60.8% |  63.0% |  2.41 |      +1 |  50.0% |
+| Energy                         |   3/18  |  0.17 |  14.3% |  90.5% |  0.08 |      +0 |  41.5% |
 ```
 
 ### Reading the Data:
@@ -210,17 +222,26 @@ python market_breadth_collector.py
 - **>50DMA below 30%** — Oversold / bearish short-term
 - **>200DMA above 70%** — Strong long-term trend
 - **>200DMA below 40%** — Bear market territory
-- **Highs >> Lows** — Broad strength, new highs across the market
-- **Lows >> Highs** — Broad weakness, breakdown signal
+- **Net Highs/Lows positive** — Broad strength, more stocks breaking out than breaking down
+- **Net Highs/Lows negative** — Broad weakness, breakdown signal
+- **Up/Down Volume > 2.0** — Strong conviction behind the move (institutional buying)
+- **Up/Down Volume < 0.5** — Sellers dominating volume (institutional distribution)
+- **Breadth Thrust > 61.5%** — Overbought short-term but strong momentum
+- **Breadth Thrust < 40%** — Oversold, potential reversal setup
+- **Zweig Signal (YES)** — Extremely rare bull signal; historically 100% reliable for major advances
 
 ### Divergence Signals:
 
 | Signal | What It Means |
 |--------|---------------|
 | Index rising + fewer stocks above 50 DMA | Rally narrowing, fragile top forming |
+| Index rising + A/D Line falling | Dangerous — fewer stocks participating in the rally |
 | Index falling + % above 200 DMA holding | Healthy correction, not a breakdown |
+| Index new high + Net Highs/Lows deteriorating | Classic pre-correction warning |
 | A/D ratio diverging between sectors | Rotation happening (money moving) |
 | Defensive sectors A/D high + Tech A/D low | Risk-off rotation (flight to safety) |
+| Up/Down Volume high + A/D ratio low | Big money buying a few stocks heavily (narrow leadership) |
+| Breadth Thrust surging from oversold | Potential trend reversal — watch for Zweig confirmation |
 
 ---
 
