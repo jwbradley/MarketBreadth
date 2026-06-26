@@ -250,12 +250,57 @@ Two strategies:
 
 ---
 
+## Watchlist Generation (--watchlist)
+
+Exports the top-scored stocks in a format that `OvtLyrMimic.py` can consume:
+
+```bash
+# Generate watchlist (default: score >= 60, top 5 per sector)
+python3 stock_screener.py --watchlist
+
+# Custom output path
+python3 stock_screener.py --watchlist /path/to/my_watchlist.json
+```
+
+Output (`ovtlyr_watchlist.json`):
+```json
+{
+  "generated": "2026-06-26 07:54:59",
+  "source_date": "2026-06-25",
+  "min_score": 60,
+  "market_breadth_pct": 63.8,
+  "stocks": [
+    {"ticker": "BKNG", "sector": "Consumer Discretionary", "sector_type": "bottom", "score": 85, "rules_passed": 9},
+    {"ticker": "LNT", "sector": "Utilities", "sector_type": "top", "score": 86, "rules_passed": 8}
+  ]
+}
+```
+
+This feeds directly into `OvtLyrMimic.py` for the full Nine Rules analysis with real breadth context.
+
+---
+
+## Complete Pipeline
+
+```
+market_breadth_collector.py    (sector breadth → identifies strongest/weakest)
+         ↓
+stock_screener.py              (individual stock technicals → scores + signals)
+         ↓
+stock_screener.py --watchlist  (exports top stocks → ovtlyr_watchlist.json)
+         ↓
+OvtLyrMimic.py                (9-rule pass/fail analysis with real breadth data)
+```
+
+---
+
 ## Companion Scripts
 
 | Script | Purpose |
 |--------|---------|
 | `market_breadth_collector.py` | Sector-level breadth (must run first) |
 | `stock_screener.py` | This script — individual stock technicals |
+| `OvtLyrMimic.py` | OVTLYR Nine Rules analysis (consumes watchlist) |
 | `market_ratios_collector.py` | Gold/Silver, Dow/Gold, S&P/Gold ratios |
 | `gsr_data_collector.py` | Gold/silver from FRED (1968+) |
 | `update_gsr_chart.py` | Chart generation |

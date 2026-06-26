@@ -439,6 +439,62 @@ def show_briefing():
         print()
 
 
+def export_watchlist(output_path=None, min_score=60, top_per_sector=5):
+    """Export top-scored stocks as a watchlist for OvtLyrMimic.py."""
+    if not os.path.exists(OUTPUT_FILE):
+        print("No screener results found. Run screener first.")
+        return
+
+    if not output_path:
+        output_path = os.path.join(DATA_DIR, 'ovtlyr_watchlist.json')
+
+    with open(OUTPUT_FILE, 'r') as f:
+        data = json.load(f)
+
+    # Load breadth data for sector context
+    breadth = load_breadth() if os.path.exists(BREADTH_FILE) else None
+
+    watchlist = {
+        'generated': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        'source_date': data['date'],
+        'min_score': min_score,
+        'market_breadth_pct': None,
+        'stocks': []
+    }
+
+    # Add overall market breadth percentage for OvtLyrMimic Rule 3
+    if breadth and 'sp500' in breadth:
+        sp = breadth['sp500']
+        watchlist['market_breadth_pct'] = sp.get('pct_above_50dma', 50)
+
+    for sector, info in data['sectors'].items():
+        # Get sector breadth for Rule 4
+        sector_breadth_pct = None
+        if breadth and 'sectors' in breadth and sector in breadth['sectors']:
+            sector_breadth_pct = breadth['sectors'][sector].get('pct_above_50dma', 50)
+
+        # Take top N stocks above min_score from this sector
+        qualifying = [s for s in info['stocks'] if s['score'] >= min_score][:top_per_sector]
+
+        for stock in qualifying:
+            watchlist['stocks'].append({
+                'ticker': stock['ticker'],
+                'sector': sector,
+                'sector_type': info['type'],
+                'score': stock['score'],
+                'rules_passed': stock.get('rules_passed', 0),
+                'sector_breadth_pct': sector_breadth_pct,
+                'rs_vs_spy': stock.get('rs_vs_spy'),
+            })
+
+    with open(output_path, 'w') as f:
+        json.dump(watchlist, f, indent=2)
+
+    print(f"[{LOG_PREFIX}] Watchlist exported: {len(watchlist['stocks'])} stocks (min score {min_score}) to {output_path}")
+    for s in watchlist['stocks']:
+        print(f"  {s['ticker']:>6} | {s['sector']:30s} | Score: {s['score']} | Rules: {s['rules_passed']}/9")
+
+
 def export_csv(output_path=None):
     """Export results to CSV."""
     if not os.path.exists(OUTPUT_FILE):
@@ -482,6 +538,7 @@ Examples:
   Specific sector:              python3 stock_screener.py --sector "Energy"
   Markdown briefing:            python3 stock_screener.py --briefing
   Export to CSV:                python3 stock_screener.py --csv
+  Generate watchlist:           python3 stock_screener.py --watchlist
         """
     )
     parser.add_argument('--sectors', type=int, default=2, help='Number of top/bottom sectors to analyze')
@@ -489,6 +546,7 @@ Examples:
     parser.add_argument('--sector', type=str, default=None, help='Analyze a specific sector')
     parser.add_argument('--briefing', action='store_true', help='Show markdown briefing')
     parser.add_argument('--csv', nargs='?', const='', default=None, help='Export to CSV')
+    parser.add_argument('--watchlist', nargs='?', const='', default=None, help='Export watchlist for OvtLyrMimic.py')
 
     args = parser.parse_args()
 
@@ -496,6 +554,8 @@ Examples:
         show_briefing()
     elif args.csv is not None:
         export_csv(args.csv if args.csv else None)
+    elif args.watchlist is not None:
+        export_watchlist(args.watchlist if args.watchlist else None)
     else:
         run_screener(args.sectors, args.top_stocks, args.sector)
 

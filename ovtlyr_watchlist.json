@@ -1,0 +1,161 @@
+{
+  "generated": "2026-06-26 07:54:59",
+  "source_date": "2026-06-25",
+  "min_score": 60,
+  "market_breadth_pct": 63.8,
+  "stocks": [
+    {
+      "ticker": "LNT",
+      "sector": "Utilities",
+      "sector_type": "top",
+      "score": 86,
+      "rules_passed": 8,
+      "sector_breadth_pct": 90.3,
+      "rs_vs_spy": 8.01
+    },
+    {
+      "ticker": "AEE",
+      "sector": "Utilities",
+      "sector_type": "top",
+      "score": 86,
+      "rules_passed": 8,
+      "sector_breadth_pct": 90.3,
+      "rs_vs_spy": 8.32
+    },
+    {
+      "ticker": "AEP",
+      "sector": "Utilities",
+      "sector_type": "top",
+      "score": 86,
+      "rules_passed": 8,
+      "sector_breadth_pct": 90.3,
+      "rs_vs_spy": 9.67
+    },
+    {
+      "ticker": "CNP",
+      "sector": "Utilities",
+      "sector_type": "top",
+      "score": 86,
+      "rules_passed": 8,
+      "sector_breadth_pct": 90.3,
+      "rs_vs_spy": 7.18
+    },
+    {
+      "ticker": "ED",
+      "sector": "Utilities",
+      "sector_type": "top",
+      "score": 86,
+      "rules_passed": 7,
+      "sector_breadth_pct": 90.3,
+      "rs_vs_spy": 6.64
+    },
+    {
+      "ticker": "CTVA",
+      "sector": "Materials",
+      "sector_type": "top",
+      "score": 87,
+      "rules_passed": 7,
+      "sector_breadth_pct": 69.2,
+      "rs_vs_spy": 3.94
+    },
+    {
+      "ticker": "AMCR",
+      "sector": "Materials",
+      "sector_type": "top",
+      "score": 86,
+      "rules_passed": 8,
+      "sector_breadth_pct": 69.2,
+      "rs_vs_spy": 11.64
+    },
+    {
+      "ticker": "DD",
+      "sector": "Materials",
+      "sector_type": "top",
+      "score": 85,
+      "rules_passed": 6,
+      "sector_breadth_pct": 69.2,
+      "rs_vs_spy": 191.27
+    },
+    {
+      "ticker": "CRH",
+      "sector": "Materials",
+      "sector_type": "top",
+      "score": 84,
+      "rules_passed": 8,
+      "sector_breadth_pct": 69.2,
+      "rs_vs_spy": 8.33
+    },
+    {
+      "ticker": "BALL",
+      "sector": "Materials",
+      "sector_type": "top",
+      "score": 79,
+      "rules_passed": 7,
+      "sector_breadth_pct": 69.2,
+      "rs_vs_spy": 11.96
+    },
+    {
+      "ticker": "EA",
+      "sector": "Communication Services",
+      "sector_type": "bottom",
+      "score": 88,
+      "rules_passed": 9,
+      "sector_breadth_pct": 17.4,
+      "rs_vs_spy": 4.22
+    },
+    {
+      "ticker": "LYV",
+      "sector": "Communication Services",
+      "sector_type": "bottom",
+      "score": 86,
+      "rules_passed": 8,
+      "sector_breadth_pct": 17.4,
+      "rs_vs_spy": 7.28
+    },
+    {
+      "ticker": "DRI",
+      "sector": "Consumer Discretionary",
+      "sector_type": "bottom",
+      "score": 95,
+      "rules_passed": 7,
+      "sector_breadth_pct": 51.1,
+      "rs_vs_spy": 6.49
+    },
+    {
+      "ticker": "ABNB",
+      "sector": "Consumer Discretionary",
+      "sector_type": "bottom",
+      "score": 91,
+      "rules_passed": 7,
+      "sector_breadth_pct": 51.1,
+      "rs_vs_spy": 7.93
+    },
+    {
+      "ticker": "BKNG",
+      "sector": "Consumer Discretionary",
+      "sector_type": "bottom",
+      "score": 85,
+      "rules_passed": 9,
+      "sector_breadth_pct": 51.1,
+      "rs_vs_spy": 6.96
+    },
+    {
+      "ticker": "BBY",
+      "sector": "Consumer Discretionary",
+      "sector_type": "bottom",
+      "score": 83,
+      "rules_passed": 8,
+      "sector_breadth_pct": 51.1,
+      "rs_vs_spy": 6.69
+    },
+    {
+      "ticker": "CCL",
+      "sector": "Consumer Discretionary",
+      "sector_type": "bottom",
+      "score": 65,
+      "rules_passed": 6,
+      "sector_breadth_pct": 51.1,
+      "rs_vs_spy": 4.3
+    }
+  ]
+}
