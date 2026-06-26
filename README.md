@@ -296,27 +296,36 @@ python3 stock_screener.py --csv
 | Indicator | What It Measures |
 |-----------|-----------------|
 | Price vs 20/50/200 DMA | Trend alignment (above all 3 = strong uptrend) |
+| EMA 10/20/50 Alignment | Faster trend confirmation (price > 10 > 20 > 50 EMA = bullish) |
+| Multi-Timeframe | Price above both 20 EMA and 100 EMA (short + long agree) |
 | Trend Score (0-3) | Count of DMAs the price is above |
-| MA Alignment | Whether 20 > 50 > 200 (bullish stacking) |
 | RSI (14-day) | Overbought (>70) / Oversold (<30) |
 | MACD + Signal | Momentum direction and crossover |
-| MACD Histogram | Momentum acceleration/deceleration |
 | Bollinger %B | Position within Bollinger Bands (0=lower, 1=upper) |
+| ATR (14-day) | Volatility as % of price — risk per trade |
 | Volume Ratio | Today's volume vs 20-day average (conviction) |
-| Avg Daily Volume | Liquidity screen |
+| Relative Strength vs SPY | 20-day outperformance vs market benchmark |
+| Divergence Detection | Bearish (price up, RSI down) / Bullish (price down, RSI up) |
+| Rules Passed (0-9) | OVTLYR-inspired pass/fail count across 9 criteria |
+| Sector Breadth Context | Sector A/D ratio boosts/penalizes individual stock scores |
 
 ### Composite Score (0-100)
 
-The score weights multiple indicators:
+The score weights multiple indicators with sector context:
 
 | Factor | Impact | Logic |
 |--------|--------|-------|
-| Trend alignment | +/- 20 | More DMAs above = higher score |
-| MA stacking | +5 | Bonus if 20 > 50 > 200 |
-| RSI | +/- 15 | Oversold = opportunity, overbought = risk |
-| MACD direction | +/- 8 | Bullish crossover = positive |
-| Bollinger position | +/- 10 | Oversold bounce potential vs extended risk |
+| Trend alignment (SMA) | +/- 15 | More DMAs above = higher score |
+| EMA alignment | +7 | Bonus if price > 10 > 20 > 50 EMA |
+| Multi-timeframe | +5 | Both short and long EMAs agree |
+| RSI | +/- 12 | Oversold = opportunity, overbought = risk |
+| MACD direction | +/- 6 | Bullish crossover = positive |
+| Bollinger position | +/- 8 | Oversold bounce potential vs extended risk |
+| ATR/Volatility | +/- 5 | Low vol = safer, high vol = riskier |
 | Volume | +/- 5 | High volume confirms the move |
+| Relative Strength vs SPY | +/- 8 | Outperforming market = strong alpha |
+| Divergence | +/- 8 | Bearish divergence = warning, bullish = opportunity |
+| Sector breadth context | +/- 6 | Strong sector A/D ratio = tailwind, weak = headwind |
 
 ### Signal Interpretation
 
@@ -338,19 +347,20 @@ The score weights multiple indicators:
 ```
 ## Stock Screener (2026-06-25)
 
-### STRONGEST: Utilities
+### STRONGEST: Utilities (Sector A/D: 6.75)
 
-| Ticker |    Price | Score | Trend |   RSI |   MACD |   BB% |   Vol |     Signal |
-|--------|----------|-------|-------|-------|--------|-------|-------|------------|
-|    AES | $  14.66 |    64 |   2/3 |  41.9 |   Bear |  0.40 |  1.0x |        Buy |
-|    LNT | $  76.19 |    64 |   3/3 |  74.2 |   Bull |  1.04 |  1.0x |        Buy |
-|    AEE | $ 114.53 |    60 |   3/3 |  74.2 |   Bull |  1.08 |  1.1x |        Buy |
+| Ticker |    Price | Score | Rules | Trend |   RSI |   MACD |  RS/SPY |  ATR% |    Flags |     Signal |
+|--------|----------|-------|-------|-------|-------|--------|---------|-------|----------|------------|
+|    LNT | $  76.19 |    86 |   8/9 |   3/3 |  74.2 |   Bull |   +8.0% |  1.7% |      EMA | Strong Buy |
+|    AEE | $ 114.53 |    86 |   8/9 |   3/3 |  74.2 |   Bull |   +8.3% |  1.8% |      EMA | Strong Buy |
+|    AEP | $ 137.00 |    86 |   8/9 |   3/3 |  75.3 |   Bull |   +9.7% |  1.8% |      EMA | Strong Buy |
 
-### WEAKEST: Consumer Discretionary
+### WEAKEST: Consumer Discretionary (Sector A/D: 0.34)
 
-| Ticker |    Price | Score | Trend |   RSI |   MACD |   BB% |   Vol |     Signal |
-|--------|----------|-------|-------|-------|--------|-------|-------|------------|
-|   AMZN | $ 227.01 |    38 |   0/3 |  29.6 |   Bear |  0.11 |  1.5x |       Weak |
+| Ticker |    Price | Score | Rules | Trend |   RSI |   MACD |  RS/SPY |  ATR% |    Flags |     Signal |
+|--------|----------|-------|-------|-------|-------|--------|---------|-------|----------|------------|
+|   ABNB | $ 141.88 |    86 |   7/9 |   3/3 |  62.5 |   Bull |   +7.9% |  3.1% |      EMA | Strong Buy |
+|   AMZN | $ 227.01 |    31 |   5/9 |   0/3 |  29.6 |   Bear |  -14.7% |  3.7% |        - |       Weak |
 ```
 
 ### Workflow with Breadth Collector
@@ -418,7 +428,7 @@ This script is part of a market data collection suite:
 | `gsr_data_collector.py` | Gold/silver prices from FRED (back to 1968) |
 | `update_gsr_chart.py` | Generates GSR chart PNG from collected data |
 
-See `README-gsr_data_collector.md` for the full suite documentation.
+See [`README-gsr_data_collector.md`](https://github.com/jwbradley/GoldenRatios) for the full suite documentation.
 
 ---
 
