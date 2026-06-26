@@ -363,7 +363,7 @@ The score weights multiple indicators with sector context:
 |   AMZN | $ 227.01 |    31 |   5/9 |   0/3 |  29.6 |   Bear |  -14.7% |  3.7% |        - |       Weak |
 ```
 
-### Workflow with Breadth Collector
+### Full Analysis Pipeline
 
 ```bash
 # Step 1: Collect breadth (identifies top/bottom sectors)
@@ -372,13 +372,20 @@ python3 market_breadth_collector.py
 # Step 2: Screen individual stocks in those sectors
 python3 stock_screener.py
 
-# Step 3: View results
+# Step 3: Generate watchlist for OVTLYR analysis
+python3 stock_screener.py --watchlist
+
+# Step 4: Run Nine Rules analysis on top stocks
+python3 OvtLyrMimic.py
+
+# Step 5: View results
 python3 stock_screener.py --briefing
+python3 OvtLyrMimic.py --briefing
 ```
 
-Or chain them:
+Or chain the full pipeline:
 ```bash
-python3 market_breadth_collector.py && python3 stock_screener.py && python3 stock_screener.py --briefing
+python3 market_breadth_collector.py && python3 stock_screener.py && python3 stock_screener.py --watchlist && python3 OvtLyrMimic.py
 ```
 
 ---
