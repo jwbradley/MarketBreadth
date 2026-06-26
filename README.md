@@ -66,7 +66,7 @@ cp market_breadth_collector.py /home/pi/scripts/
 pip install yfinance pandas lxml
 
 # First run (downloads S&P 500 constituent list automatically)
-python3 market_breadth_collector.py
+python market_breadth_collector.py
 ```
 
 ---
@@ -75,22 +75,22 @@ python3 market_breadth_collector.py
 
 ```bash
 # Collect today's breadth data (default mode)
-python3 market_breadth_collector.py
+python market_breadth_collector.py
 
 # Show current status (table format)
-python3 market_breadth_collector.py --status
+python market_breadth_collector.py --status
 
 # Markdown briefing (for reports, sorted strongest to weakest)
-python3 market_breadth_collector.py --briefing
+python market_breadth_collector.py --briefing
 
 # Export history to CSV (for spreadsheet analysis)
-python3 market_breadth_collector.py --csv
+python market_breadth_collector.py --csv
 
 # Export to specific path
-python3 market_breadth_collector.py --csv /path/to/breadth_export.csv
+python market_breadth_collector.py --csv /path/to/breadth_export.csv
 
 # Force refresh S&P 500 constituent list
-python3 market_breadth_collector.py --update-constituents
+python market_breadth_collector.py --update-constituents
 ```
 
 ---
@@ -159,7 +159,7 @@ Run daily after market close (4 PM ET = 3 PM CT):
 crontab -e
 
 # Add this line (5:45 PM CT Monday-Friday)
-45 17 * * 1-5 /usr/bin/python3 /home/pi/scripts/market_breadth_collector.py >> /home/pi/logs/market_breadth.log 2>&1
+45 17 * * 1-5 /usr/bin/python /home/pi/scripts/market_breadth_collector.py >> /home/pi/logs/market_breadth.log 2>&1
 ```
 
 Create log directory:
@@ -273,22 +273,22 @@ Requires `market_breadth_latest.json` from running `market_breadth_collector.py`
 
 ```bash
 # Auto-select top 2 + bottom 2 sectors, 10 stocks each
-python3 stock_screener.py
+python stock_screener.py
 
 # Top/bottom 3 sectors instead of 2
-python3 stock_screener.py --sectors 3
+python stock_screener.py --sectors 3
 
 # Analyze 20 stocks per sector
-python3 stock_screener.py --top-stocks 20
+python stock_screener.py --top-stocks 20
 
 # Analyze a specific sector
-python3 stock_screener.py --sector "Energy"
+python stock_screener.py --sector "Energy"
 
 # Markdown output for reports
-python3 stock_screener.py --briefing
+python stock_screener.py --briefing
 
 # Export to CSV for spreadsheet analysis
-python3 stock_screener.py --csv
+python stock_screener.py --csv
 ```
 
 ### Indicators Calculated (per stock)
@@ -367,25 +367,25 @@ The score weights multiple indicators with sector context:
 
 ```bash
 # Step 1: Collect breadth (identifies top/bottom sectors)
-python3 market_breadth_collector.py
+python market_breadth_collector.py
 
 # Step 2: Screen individual stocks in those sectors
-python3 stock_screener.py
+python stock_screener.py
 
 # Step 3: Generate watchlist for OVTLYR analysis
-python3 stock_screener.py --watchlist
+python stock_screener.py --watchlist
 
 # Step 4: Run Nine Rules analysis on top stocks
-python3 OvtLyrMimic.py
+python OvtLyrMimic.py
 
 # Step 5: View results
-python3 stock_screener.py --briefing
-python3 OvtLyrMimic.py --briefing
+python stock_screener.py --briefing
+python OvtLyrMimic.py --briefing
 ```
 
 Or chain the full pipeline:
 ```bash
-python3 market_breadth_collector.py && python3 stock_screener.py && python3 stock_screener.py --watchlist && python3 OvtLyrMimic.py
+python market_breadth_collector.py && python stock_screener.py --sectors 3 && python stock_screener.py --watchlist && python stock_screener.py --briefing && python OvtLyrMimic.py
 ```
 
 ---
