@@ -1,6 +1,11 @@
-# Market Breadth Collector
+# Market Breadth Collector & Stock Screener
 
-Daily market breadth indicator calculator for the S&P 500 and all 11 GICS sectors. Measures the health and participation of the broad market beyond what index levels alone can tell you.
+Daily market breadth indicator calculator for the S&P 500 and all 11 GICS sectors, plus a technical analysis screener that drills into individual stocks within the strongest and weakest sectors.
+
+| Script | Purpose |
+|--------|---------|
+| `market_breadth_collector.py` | Sector-level breadth (A/D, DMA%, volume, thrust) |
+| `stock_screener.py` | Individual stock technicals (RSI, MACD, Bollinger, DMA alignment) |
 
 ---
 
@@ -242,6 +247,129 @@ python market_breadth_collector.py
 | Defensive sectors A/D high + Tech A/D low | Risk-off rotation (flight to safety) |
 | Up/Down Volume high + A/D ratio low | Big money buying a few stocks heavily (narrow leadership) |
 | Breadth Thrust surging from oversold | Potential trend reversal — watch for Zweig confirmation |
+
+---
+
+## Stock Screener (stock_screener.py)
+
+Takes the breadth data output and drills into individual stocks within the strongest and weakest sectors. Performs technical analysis on the top 10-20 stocks per sector and generates buy/avoid signals.
+
+### How It Works
+
+1. Reads `market_breadth_latest.json` to identify top 2 + bottom 2 sectors by A/D ratio
+2. Fetches 1 year of price/volume history for top stocks in each sector
+3. Calculates technical indicators per stock
+4. Generates a composite score (0-100) and signal
+
+### Requirements
+
+```bash
+pip install yfinance pandas numpy
+```
+
+Requires `market_breadth_latest.json` from running `market_breadth_collector.py` first.
+
+### Usage
+
+```bash
+# Auto-select top 2 + bottom 2 sectors, 10 stocks each
+python3 stock_screener.py
+
+# Top/bottom 3 sectors instead of 2
+python3 stock_screener.py --sectors 3
+
+# Analyze 20 stocks per sector
+python3 stock_screener.py --top-stocks 20
+
+# Analyze a specific sector
+python3 stock_screener.py --sector "Energy"
+
+# Markdown output for reports
+python3 stock_screener.py --briefing
+
+# Export to CSV for spreadsheet analysis
+python3 stock_screener.py --csv
+```
+
+### Indicators Calculated (per stock)
+
+| Indicator | What It Measures |
+|-----------|-----------------|
+| Price vs 20/50/200 DMA | Trend alignment (above all 3 = strong uptrend) |
+| Trend Score (0-3) | Count of DMAs the price is above |
+| MA Alignment | Whether 20 > 50 > 200 (bullish stacking) |
+| RSI (14-day) | Overbought (>70) / Oversold (<30) |
+| MACD + Signal | Momentum direction and crossover |
+| MACD Histogram | Momentum acceleration/deceleration |
+| Bollinger %B | Position within Bollinger Bands (0=lower, 1=upper) |
+| Volume Ratio | Today's volume vs 20-day average (conviction) |
+| Avg Daily Volume | Liquidity screen |
+
+### Composite Score (0-100)
+
+The score weights multiple indicators:
+
+| Factor | Impact | Logic |
+|--------|--------|-------|
+| Trend alignment | +/- 20 | More DMAs above = higher score |
+| MA stacking | +5 | Bonus if 20 > 50 > 200 |
+| RSI | +/- 15 | Oversold = opportunity, overbought = risk |
+| MACD direction | +/- 8 | Bullish crossover = positive |
+| Bollinger position | +/- 10 | Oversold bounce potential vs extended risk |
+| Volume | +/- 5 | High volume confirms the move |
+
+### Signal Interpretation
+
+| Score | Signal | Meaning |
+|-------|--------|---------|
+| 70-100 | Strong Buy | Multiple indicators aligned bullish |
+| 60-69 | Buy | Mostly positive technicals |
+| 40-59 | Neutral | Mixed signals, no clear edge |
+| 30-39 | Weak | Deteriorating technicals |
+| 0-29 | Avoid | Multiple indicators bearish |
+
+### Output Files
+
+- `stock_screener_results.json` — Full analysis with all indicators per stock
+- `stock_screener_results.csv` — Flat export for spreadsheets (via `--csv`)
+
+### Briefing Output Example
+
+```
+## Stock Screener (2026-06-25)
+
+### STRONGEST: Utilities
+
+| Ticker |    Price | Score | Trend |   RSI |   MACD |   BB% |   Vol |     Signal |
+|--------|----------|-------|-------|-------|--------|-------|-------|------------|
+|    AES | $  14.66 |    64 |   2/3 |  41.9 |   Bear |  0.40 |  1.0x |        Buy |
+|    LNT | $  76.19 |    64 |   3/3 |  74.2 |   Bull |  1.04 |  1.0x |        Buy |
+|    AEE | $ 114.53 |    60 |   3/3 |  74.2 |   Bull |  1.08 |  1.1x |        Buy |
+
+### WEAKEST: Consumer Discretionary
+
+| Ticker |    Price | Score | Trend |   RSI |   MACD |   BB% |   Vol |     Signal |
+|--------|----------|-------|-------|-------|--------|-------|-------|------------|
+|   AMZN | $ 227.01 |    38 |   0/3 |  29.6 |   Bear |  0.11 |  1.5x |       Weak |
+```
+
+### Workflow with Breadth Collector
+
+```bash
+# Step 1: Collect breadth (identifies top/bottom sectors)
+python3 market_breadth_collector.py
+
+# Step 2: Screen individual stocks in those sectors
+python3 stock_screener.py
+
+# Step 3: View results
+python3 stock_screener.py --briefing
+```
+
+Or chain them:
+```bash
+python3 market_breadth_collector.py && python3 stock_screener.py && python3 stock_screener.py --briefing
+```
 
 ---
 
