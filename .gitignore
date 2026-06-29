@@ -1,3 +1,4 @@
 logs/
 market_breadth_history.csv
 sp500_constituents.csv
+*.json
