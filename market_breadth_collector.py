@@ -83,14 +83,14 @@ def calculate_breadth(close_data, volume_data, tickers_in_sector):
         return None
 
     # Advance/Decline (today)
-    daily_chg = sector_close.pct_change().iloc[-1]
+    daily_chg = sector_close.pct_change(fill_method=None).iloc[-1]
     advancing = int((daily_chg > 0).sum())
     declining = int((daily_chg < 0).sum())
     unchanged = int((daily_chg == 0).sum())
     ad_ratio = round(advancing / max(declining, 1), 2)
 
     # Cumulative A/D Line (last 10 days for trend)
-    daily_chg_all = sector_close.pct_change()
+    daily_chg_all = sector_close.pct_change(fill_method=None)
     ad_daily = (daily_chg_all > 0).sum(axis=1) - (daily_chg_all < 0).sum(axis=1)
     ad_line = ad_daily.cumsum()
     ad_line_current = int(ad_line.iloc[-1])
