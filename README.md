@@ -385,7 +385,7 @@ python OvtLyrMimic.py --briefing
 
 Or chain the full pipeline:
 ```bash
-python market_breadth_collector.py && python stock_screener.py --sectors 3 && python stock_screener.py --watchlist && python stock_screener.py --briefing && python OvtLyrMimic.py
+python market_breadth_collector.py &&   python stock_screener.py --sectors 3 > logs/todaysMarketBreadth.log && python stock_screener.py --watchlist >> logs/todaysMarketBreadth.log && python stock_screener.py --briefing >> logs/todaysMarketBreadth.log && python OvtLyrMimic.py >> logs/todaysMarketBreadth.log 2>&1
 ```
 
 ---
