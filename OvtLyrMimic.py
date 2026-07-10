@@ -332,6 +332,80 @@ def print_summary(results):
     print(f"\nTotal Analyzed: {len(results)}")
 
 
+def get_expected_move(ticker, price):
+    """
+    Calculate expected move using implied volatility from the nearest options expiration.
+    Formula: Daily 1-sigma move = (Price × IV) / sqrt(252)
+    Shortcut: Price × IV / 16
+    """
+    try:
+        stock = yf.Ticker(ticker)
+        expirations = stock.options
+        if not expirations:
+            return None
+
+        # Use nearest expiration
+        chain = stock.option_chain(expirations[0])
+        calls = chain.calls
+
+        # Find the ATM call (closest strike to current price)
+        atm_idx = (calls['strike'] - price).abs().idxmin()
+        iv = float(calls.loc[atm_idx, 'impliedVolatility'])
+
+        # Days to nearest expiration
+        exp_date = datetime.strptime(expirations[0], '%Y-%m-%d')
+        dte = max((exp_date - datetime.now()).days, 1)
+
+        daily_move = (price * iv) / np.sqrt(252)
+        weekly_move = (price * iv * np.sqrt(5)) / np.sqrt(252)
+        exp_move = (price * iv * np.sqrt(dte)) / np.sqrt(252)
+
+        return {
+            'iv': iv * 100,
+            'daily_move': daily_move,
+            'daily_pct': (daily_move / price) * 100,
+            'weekly_move': weekly_move,
+            'weekly_pct': (weekly_move / price) * 100,
+            'exp_move': exp_move,
+            'exp_pct': (exp_move / price) * 100,
+            'dte': dte,
+            'expiration': expirations[0]
+        }
+    except Exception:
+        return None
+
+
+def print_expected_moves(results):
+    """Print expected move table for all analyzed tickers."""
+    print(f"\n## Expected Move (1-sigma) - {datetime.now().strftime('%Y-%m-%d')}")
+    print(f"\n| {'Ticker':>6} | {'Price':>8} | {'IV':>6} | {'Daily +/-':>14} | {'Weekly +/-':>16} | {'To Exp +/-':>16} | {'DTE':>4} |")
+    print(f"|{'-'*8}|{'-'*10}|{'-'*8}|{'-'*16}|{'-'*18}|{'-'*18}|{'-'*6}|")
+
+    moves = []
+    for r in results:
+        ticker = r['ticker']
+        try:
+            stock = yf.Ticker(ticker)
+            price = float(stock.info.get('regularMarketPrice') or stock.info.get('currentPrice') or 0)
+            if price == 0:
+                price = float(r.get('details', {}).get('Rule 1: Trend Confirmation', {}).get('details', '').split('$')[1].split(',')[0])
+        except Exception:
+            continue
+
+        em = get_expected_move(ticker, price)
+        if em:
+            moves.append((ticker, price, em))
+            print(f"| {ticker:>6} | ${price:>6.2f} | {em['iv']:>5.1f}% | ${em['daily_move']:>6.2f} ({em['daily_pct']:>4.1f}%) | ${em['weekly_move']:>7.2f} ({em['weekly_pct']:>4.1f}%) | ${em['exp_move']:>7.2f} ({em['exp_pct']:>4.1f}%) | {em['dte']:>4} |")
+        else:
+            print(f"| {ticker:>6} | ${price:>6.2f} | {'N/A':>6} | {'N/A':>14} | {'N/A':>16} | {'N/A':>16} | {'N/A':>4} |")
+
+    if moves:
+        avg_iv = np.mean([m[2]['iv'] for m in moves])
+        avg_daily_pct = np.mean([m[2]['daily_pct'] for m in moves])
+        print(f"\n*Avg IV: {avg_iv:.1f}% | Avg daily expected move: +/-{avg_daily_pct:.2f}%*")
+        print(f"*Formula: Price x IV / sqrt(252) (1 standard deviation, ~68% probability range)*")
+
+
 def print_briefing(results):
     """Print markdown briefing."""
     print(f"## OVTLYR Nine Rules Analysis ({datetime.now().strftime('%Y-%m-%d')})")
@@ -344,6 +418,9 @@ def print_briefing(results):
         rs = f"{r['rs_vs_spy']:+.1f}%" if r.get('rs_vs_spy') is not None else "N/A"
         sector = (r.get('sector') or 'N/A')[:25]
         print(f"| {r['ticker']:>6} | {sector:>25} | {r['signal']:>12} | {r['rules_passed']:>3}/9 | {rs:>7} |")
+
+    # Add expected move section
+    print_expected_moves(results)
 
 
 def main():
