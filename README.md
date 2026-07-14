@@ -5,9 +5,10 @@ Daily toolkit for a **quick, structured view** of US large-cap market participat
 | Layer | Script | Purpose |
 |-------|--------|---------|
 | Sector breadth | `market_breadth_collector.py` | A/D, % above DMAs, volume, thrust for S&P 500 + 11 GICS sectors |
-| Shared TA | `ta_indicators.py` | One indicator + nine-rules library (used by screener & OvtLyr) |
+| Shared TA | `ta_indicators.py` | One indicator + nine-rules library (used by screener & nine-rules gate) |
 | Stock screen | `stock_screener.py` | RS + liquidity ranking, composite scores, thesis-aware signals |
-| Rules gate | `OvtLyrMimic.py` | Nine-rules pass/fail on the exported watchlist |
+| Rules gate | `nine_rules_gate.py` | Nine-rules pass/fail on the exported watchlist |
+| Independent scan | `nine_rules_independent.py` | Re-score core book ∪ watchlist (overlap report) |
 | Daily run (Linux) | `getTodaysStockScreenerData.sh` | Cron orchestrator (soft-fail, one log) |
 | Daily run (Windows) | `getStockScreenerData.bat` | Same pipeline order for Task Scheduler / console |
 
@@ -21,7 +22,7 @@ Optional macro companions (separate package): GoldenRatios GSR / market-ratios c
 |-----|----------|
 | [BEST_PRACTICES.md](BEST_PRACTICES.md) | How to run and interpret the suite day to day |
 | [README-stock_screener.md](README-stock_screener.md) | Screener CLI, scoring, opportunities |
-| [README-OvtLyrMimic.md](README-OvtLyrMimic.md) | Nine rules tool |
+| [README-nine_rules.md](README-nine_rules.md) | Nine rules tool |
 | [README-ta_indicators.md](README-ta_indicators.md) | Shared library API |
 | [Expected-Move-Guide.md](Expected-Move-Guide.md) | Options expected-move / IV concepts |
 | [DISCLAIMER.md](DISCLAIMER.md) | Full risk / no-advice disclaimer |
@@ -43,8 +44,9 @@ ta_indicators.py  ◄── shared rank + TA + nine rules
         │
         ├── stock_screener.py  → scores, signals, --opportunities, --watchlist
         │         │
-        │         ▼  ovtlyr_watchlist.json
-        └── OvtLyrMimic.py     → same rules math, short-list gate
+        │         ▼  nine_rules_watchlist.json
+        ├── nine_rules_gate.py           → same rules math, short-list gate
+        └── nine_rules_independent.py    → core ∪ watchlist re-score
 
 getTodaysStockScreenerData.sh  → Linux cron: collect → screen → report
 getStockScreenerData.bat       → Windows: same step order (edit LOG= path)
@@ -102,7 +104,7 @@ python3 stock_screener.py --briefing
 
 # 4. Watchlist + nine-rules gate
 python3 stock_screener.py --watchlist
-python3 OvtLyrMimic.py --briefing
+python3 nine_rules_gate.py --briefing
 ```
 
 Or one daily job:
@@ -123,7 +125,7 @@ REM 2) Run from a working directory where MarketBreadth (and GoldenRatios, if us
 getStockScreenerData.bat
 ```
 
-The `.bat` mirrors the Linux step order: GoldenRatios collectors (if present) → breadth → screener → briefings → OvtLyr → OvtLyrMimic4. It does **not** soft-fail or activate a venv the way the shell script does—see [BEST_PRACTICES.md](BEST_PRACTICES.md) and [CHANGELOG.md](CHANGELOG.md) §2.1.1.
+The `.bat` mirrors the Linux step order: GoldenRatios collectors (if present) → breadth → screener → briefings → nine-rules gate → nine_rules_independent. It does **not** soft-fail or activate a venv the way the shell script does—see [BEST_PRACTICES.md](BEST_PRACTICES.md) and [CHANGELOG.md](CHANGELOG.md) §2.1.1.
 
 ### Scheduled runs (example, weekdays)
 
@@ -161,7 +163,7 @@ python3 market_breadth_collector.py --update-constituents
 | `market_breadth_history.json` | Daily history |
 | `sp500_constituents.csv` | Constituents + GICS (refreshed periodically) |
 | `stock_screener_results.json` | Per-stock technicals and scores |
-| `ovtlyr_watchlist.json` | Short list for OvtLyr |
+| `nine_rules_watchlist.json` | Short list for nine-rules gate |
 
 Environment overrides: `MARKET_BREADTH_DIR` or `GSR_DATA_DIR`.  
 Liquidity floor for screener: `SCREENER_MIN_DOLLAR_VOL` (default `20000000`).
@@ -189,13 +191,13 @@ MarketBreadth/
 ├── market_breadth_collector.py
 ├── ta_indicators.py
 ├── stock_screener.py
-├── OvtLyrMimic.py
-├── OvtLyrMimic4.py
+├── nine_rules_gate.py
+├── nine_rules_independent.py
 ├── getTodaysStockScreenerData.sh   # Linux/macOS daily runner
 ├── getStockScreenerData.bat        # Windows daily runner (edit LOG=)
 ├── README.md
 ├── README-stock_screener.md
-├── README-OvtLyrMimic.md
+├── README-nine_rules.md
 ├── README-ta_indicators.md
 ├── Expected-Move-Guide.md
 ├── BEST_PRACTICES.md
@@ -216,7 +218,7 @@ MarketBreadth/
 | `ModuleNotFoundError: yfinance` | `pip install yfinance pandas numpy lxml` |
 | Empty / weekend data | Markets closed; wait for a session |
 | Stale constituents | `--update-constituents` |
-| Screener vs OvtLyr disagree | Ensure both import `ta_indicators.py`; re-run watchlist after screen |
+| Screener vs nine-rules gate disagree | Ensure both import `ta_indicators.py`; re-run watchlist after screen |
 | Slow full run | Normal: full SPX download + multi-sector pre-rank |
 | Step failed in daily script (Linux) | Check `logs/errors.log`; other steps may still have completed |
 | `UnicodeEncodeError` on Windows | Use current CLI code (ASCII-safe prints). Avoid reintroducing em dashes / √ / σ / arrows in `print()`. Or set `PYTHONIOENCODING=utf-8` / use a UTF-8 console |

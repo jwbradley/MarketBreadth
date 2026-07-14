@@ -1,13 +1,19 @@
-# OvtLyrMimic — Nine Rules Analysis
+# Nine Rules Gate & Independent Scan
 
-Python checklist inspired by publicly discussed OVTLYR-style “nine rules” ideas.  
-**v3** evaluates rules through **`ta_indicators.py`**—the same math as `stock_screener.py`.
+Educational **multi-factor technical checklist** used as a short-list gate after sector breadth and the stock screener.
 
-After the nine rules, it can also report **IV-based expected move** (1-sigma) from the nearest listed options expiration (ATM IV via Yahoo). See [Expected-Move-Guide.md](Expected-Move-Guide.md).
+| Script | Role |
+|--------|------|
+| `nine_rules_gate.py` | Funnel gate: score the screener watchlist (same TA math as the screener) |
+| `nine_rules_independent.py` | Independent re-score: core book ∪ personal file ∪ watchlist ∪ CLI |
 
-This tool is a **short-list gate**, not a full-universe scanner. Prefer feeding it `ovtlyr_watchlist.json` from the screener.
+Both use **`ta_indicators.py`** when available so rule counts stay aligned with `stock_screener.py`.
 
-**Windows note:** formula / header strings in CLI output use ASCII (`sqrt()`, `1-sigma`, `-`) so redirecting to a log under cp1252 does not raise `UnicodeEncodeError`. See [CHANGELOG.md](CHANGELOG.md) §2.1.1.
+After the nine rules, the gate can also report **IV-based expected move** (1-sigma) from the nearest listed options expiration (ATM IV via Yahoo). See [Expected-Move-Guide.md](Expected-Move-Guide.md).
+
+Prefer feeding the gate `nine_rules_watchlist.json` from `stock_screener.py --watchlist`.
+
+**Windows note:** CLI formula / header strings use ASCII (`sqrt()`, `1-sigma`, `-`) so redirecting to a log under cp1252 does not raise `UnicodeEncodeError`. See [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -53,14 +59,14 @@ pip install yfinance pandas numpy
 Optional but recommended:
 
 - `market_breadth_latest.json` — real market/sector breadth for rules 3–4  
-- `ovtlyr_watchlist.json` — from `stock_screener.py --watchlist`  
+- `nine_rules_watchlist.json` — from `stock_screener.py --watchlist`  
 - `sp500_constituents.csv` — sector map for bare `--tickers` mode  
 
 Without breadth files, market breadth may fall back to a crude SPY-vs-EMA proxy; sector breadth may fail closed if unknown.
 
 ---
 
-## Usage
+## Usage — gate (`nine_rules_gate.py`)
 
 ### From screener watchlist (recommended)
 
@@ -68,33 +74,51 @@ Without breadth files, market breadth may fall back to a crude SPY-vs-EMA proxy;
 python3 market_breadth_collector.py
 python3 stock_screener.py --sectors 3
 python3 stock_screener.py --watchlist
-python3 OvtLyrMimic.py
-python3 OvtLyrMimic.py --briefing
+python3 nine_rules_gate.py
+python3 nine_rules_gate.py --briefing
 ```
 
 ### Manual tickers
 
 ```bash
-python3 OvtLyrMimic.py --tickers AAPL MSFT NVDA AMD TSLA
+python3 nine_rules_gate.py --tickers AAPL MSFT NVDA AMD TSLA
 ```
 
 ### Custom watchlist path
 
 ```bash
-python3 OvtLyrMimic.py --watchlist /path/to/my_watchlist.json
+python3 nine_rules_gate.py --watchlist /path/to/my_watchlist.json
 ```
 
-### Verbose rule detail
+### Verbose / skip options
 
 ```bash
-python3 OvtLyrMimic.py --verbose
+python3 nine_rules_gate.py --verbose
+python3 nine_rules_gate.py --no-expected-move
 ```
 
-### Skip options / expected move (faster)
+---
+
+## Usage — independent (`nine_rules_independent.py`)
+
+Re-scores a layered universe without requiring a fresh screener run:
 
 ```bash
-python3 OvtLyrMimic.py --no-expected-move
+# Core book only (plus personal tickers.txt if present)
+python3 nine_rules_independent.py
+
+# Core ∪ screener watchlist (daily pipeline mode)
+python3 nine_rules_independent.py --union-watchlist --briefing --no-expected-move
+
+# Screener watchlist only
+python3 nine_rules_independent.py --watchlist-only --verbose
+
+# Ad-hoc
+python3 nine_rules_independent.py --tickers SMCI ARM TSM
+python3 nine_rules_independent.py --file my_tickers.txt
 ```
+
+Daily runners write the independent report to `logs/nine_rules_independent.log`.
 
 ---
 
@@ -117,7 +141,7 @@ Expected move is a **range scale**, not a direction signal, and is not a guarant
 
 ## Watchlist JSON
 
-Produced by the screener; minimum useful shape:
+Produced by the screener (`nine_rules_watchlist.json`); minimum useful shape:
 
 ```json
 {
@@ -141,6 +165,8 @@ Produced by the screener; minimum useful shape:
 
 Only `ticker` is strictly required per stock; `sector` / `sector_breadth_pct` improve rule 4.
 
+Readers still accept the legacy filename `ovtlyr_watchlist.json` if the new file is missing (temporary compatibility).
+
 ---
 
 ## Integration with the screener
@@ -156,7 +182,7 @@ If counts differ, re-run the screener watchlist after a code change and confirm 
 
 ---
 
-## Output modes
+## Output modes (gate)
 
 | Mode | Description |
 |------|-------------|
@@ -164,7 +190,7 @@ If counts differ, re-run the screener watchlist after a code change and confirm 
 | `--briefing` | Markdown table for daily logs |
 | `--verbose` | Per-rule pass/fail details |
 
-The daily orchestrators (`getTodaysStockScreenerData.sh` / `getStockScreenerData.bat`) append `OvtLyrMimic.py --briefing` after screener opportunities, then run `OvtLyrMimic4.py` for an independent re-score.
+The daily orchestrators (`getTodaysStockScreenerData.sh` / `getStockScreenerData.bat`) append `nine_rules_gate.py --briefing` after screener opportunities, then run `nine_rules_independent.py` for an independent re-score.
 
 ---
 
@@ -185,9 +211,15 @@ For day-to-day workflow tips: [BEST_PRACTICES.md](BEST_PRACTICES.md).
 | `market_breadth_collector.py` | Breadth for rules 3–4 |
 | `stock_screener.py` | Scores + watchlist |
 | `ta_indicators.py` | Shared math |
-| `OvtLyrMimic4.py` | Independent re-score + core∪watchlist overlap |
+| `nine_rules_independent.py` | Independent re-score + core∪watchlist overlap |
 | `getTodaysStockScreenerData.sh` | Cron pipeline (Linux/macOS) |
 | `getStockScreenerData.bat` | Task Scheduler pipeline (Windows) |
+
+---
+
+## Naming note
+
+Earlier releases used filenames that referenced a commercial charting product. This toolkit is an **independent educational implementation** of a common multi-factor technical checklist. It is **not affiliated with, endorsed by, or a reproduction of** any third-party commercial platform.
 
 ---
 
@@ -198,7 +230,6 @@ This software is for **educational and informational purposes only**. It is **no
 - These tools are **not guaranteed to make money**.
 - **Past performance is not indicative of future results.**
 - Checklist labels such as “STRONG BUY” or “SELL/AVOID” are **not guarantees** of future prices or outcomes.
-- The name “OvtLyr” / OVTLYR refers to publicly discussed rule *concepts* for interoperability and education; this project is an independent implementation and is not affiliated with any commercial product unless explicitly stated.
 - You alone are responsible for your decisions. Data may be delayed or incorrect.
 
 **Full text:** [DISCLAIMER.md](DISCLAIMER.md)

@@ -1,13 +1,13 @@
 # ta_indicators — Shared Technical Analysis Library
 
-Single source of truth for indicator math used by `stock_screener.py` and `OvtLyrMimic.py`.  
+Single source of truth for indicator math used by `stock_screener.py` and `nine_rules_gate.py`.  
 Keeping both tools on this module prevents silent score/rule disagreements.
 
 ---
 
 ## Why it exists
 
-Previously the screener and OvtLyr each recomputed RSI, EMAs, ATR, and divergence with small differences (lookback periods, EMA `adjust` flags, divergence thresholds). Option C extracts that math into one library.
+Previously the screener and nine-rules gate each recomputed RSI, EMAs, ATR, and divergence with small differences (lookback periods, EMA `adjust` flags, divergence thresholds). Option C extracts that math into one library.
 
 ---
 
@@ -23,7 +23,7 @@ Previously the screener and OvtLyr each recomputed RSI, EMAs, ATR, and divergenc
 | `relative_strength` | Return vs benchmark over N days |
 | `detect_divergences` | Simple price/RSI 5-day divergence flags |
 | `calculate_from_ohlcv` | Full indicator dict from a history DataFrame |
-| `evaluate_nine_rules` | OVTLYR-style 9 rules from an indicator dict |
+| `evaluate_nine_rules` | multi-factor technical 9 rules from an indicator dict |
 | `nine_rules_signal` | Map rules-passed count → STRONG BUY / BUY / NEUTRAL / SELL/AVOID |
 | `sector_composite_score` | Multi-metric sector strength from breadth JSON |
 | `rank_sectors` | Top/bottom sector names by composite score |
@@ -93,7 +93,7 @@ There is no CLI; import from the sibling scripts or your own tools.
 ## Related
 
 - [README-stock_screener.md](README-stock_screener.md)
-- [README-OvtLyrMimic.md](README-OvtLyrMimic.md)
+- [README-nine_rules.md](README-nine_rules.md)
 - [BEST_PRACTICES.md](BEST_PRACTICES.md)
 
 ---

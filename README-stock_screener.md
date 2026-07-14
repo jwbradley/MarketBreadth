@@ -6,7 +6,7 @@ Automated technical analysis that:
 2. Picks strongest / weakest sectors via a **multi-metric composite**
 3. Pre-ranks names in each sector by **relative strength + liquidity** (not alphabet)
 4. Scores candidates with shared indicators from `ta_indicators.py`
-5. Applies the **same nine rules** used by `OvtLyrMimic.py`
+5. Applies the **same nine rules** used by `nine_rules_gate.py`
 6. Emits thesis-aware signals and optional watchlist / opportunities briefings
 
 ---
@@ -45,7 +45,7 @@ python3 stock_screener.py --opportunities
 # CSV export
 python3 stock_screener.py --csv
 
-# Watchlist for OvtLyrMimic
+# Watchlist for nine_rules_gate
 python3 stock_screener.py --watchlist
 ```
 
@@ -56,7 +56,7 @@ python3 market_breadth_collector.py
 python3 stock_screener.py --sectors 3
 python3 stock_screener.py --opportunities
 python3 stock_screener.py --watchlist
-python3 OvtLyrMimic.py --briefing
+python3 nine_rules_gate.py --briefing
 ```
 
 ---
@@ -118,7 +118,7 @@ Rules 3 and 4 are no longer stubbed as always true.
 | 4–5 | Mixed |
 | 0–3 | Multiple flags against |
 
-OvtLyr maps the same counts to STRONG BUY / BUY / NEUTRAL / SELL/AVOID.
+nine-rules gate maps the same counts to STRONG BUY / BUY / NEUTRAL / SELL/AVOID.
 
 ---
 
@@ -151,7 +151,7 @@ Scores are a ranking aid, not a probability of profit.
 | `stock_screener_results.json` | Full run payload |
 | `--briefing` | Markdown tables per sector |
 | `--opportunities` | Short best-ideas section |
-| `--watchlist` → `ovtlyr_watchlist.json` | Input for OvtLyr |
+| `--watchlist` → `nine_rules_watchlist.json` | Input for nine-rules gate |
 | `--csv` | Flat spreadsheet export |
 
 ---
@@ -170,7 +170,7 @@ Scores are a ranking aid, not a probability of profit.
 |--------|------|
 | `market_breadth_collector.py` | Must run first |
 | `ta_indicators.py` | Shared math |
-| `OvtLyrMimic.py` | Nine-rules gate on watchlist |
+| `nine_rules_gate.py` | Nine-rules gate on watchlist |
 | `getTodaysStockScreenerData.sh` | Daily orchestration (Linux/macOS) |
 | `getStockScreenerData.bat` | Daily orchestration (Windows; edit `LOG=`) |
 

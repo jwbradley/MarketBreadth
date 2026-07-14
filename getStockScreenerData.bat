@@ -45,10 +45,10 @@ echo [%date% %time%] Running: stock_screener.py --opportunities >> "%LOG%"
 echo [%date% %time%] Running: stock_screener.py --briefing >> "%LOG%"
 @python stock_screener.py --briefing >> "%LOG%"
 
-echo [%date% %time%] Running: OvtLyrMimic.py --briefing >> "%LOG%"
-@python OvtLyrMimic.py --briefing >> "%LOG%"
+echo [%date% %time%] Running: nine_rules_gate.py --briefing >> "%LOG%"
+@python nine_rules_gate.py --briefing >> "%LOG%"
 
-echo [%date% %time%] Running: OvtLyrMimic4.py --union-watchlist --briefing --no-expected-move --no-save >> "%LOG%"
-@python OvtLyrMimic4.py --union-watchlist --briefing --no-expected-move --no-save >> "%LOG%"
+echo [%date% %time%] Running: nine_rules_independent.py --union-watchlist --briefing --no-expected-move --no-save >> "%LOG%"
+@python nine_rules_independent.py --union-watchlist --briefing --no-expected-move --no-save >> "%LOG%"
 
 echo [%date% %time%] === Stock Screener Data Collection Complete === >> "%LOG%"

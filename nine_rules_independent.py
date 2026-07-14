@@ -1,31 +1,31 @@
 #!/usr/bin/env python3
 """
-OVTLYR Nine Rules Analysis — v4 (independent universe; lives in MarketBreadth)
+Nine Rules Independent - multi-universe checklist (lives in MarketBreadth)
 
-Re-scores names independently of the funnel path in OvtLyrMimic.py so you can
+Re-scores names independently of the funnel path in nine_rules_gate.py so you can
 compare core book vs what stock_screener bubbled. Optionally *reads* local
 watchlist / breadth JSON — does not require re-running collectors first.
 
 Universe layers (combine freely):
   1. Core always     Mag7 + liquid large-caps + sector ETFs (+ SPY/QQQ/GLD/SLV)
   2. Personal book   tickers.txt (or --file) — one symbol per line
-  3. Screener feed   --watchlist PATH to ovtlyr_watchlist.json
+  3. Screener feed   --watchlist PATH to nine_rules_watchlist.json
   4. CLI ad-hoc      --tickers AAPL FOO BAR
 
 Defaults:
-  python3 OvtLyrMimic4.py
+  python3 nine_rules_independent.py
       → core only (or core + personal file if present)
 
-  python3 OvtLyrMimic4.py --union-watchlist
+  python3 nine_rules_independent.py --union-watchlist
       → core ∪ personal ∪ screener watchlist (best for match checks)
 
-  python3 OvtLyrMimic4.py --watchlist-only
+  python3 nine_rules_independent.py --watchlist-only
       → only what bubbled from the screener
 
 Daily cron (getTodaysStockScreenerData.sh) writes:
-  logs/MimicOVTLR-DailyOutput.log
+  logs/nine_rules_independent.log
 
-Improvements vs standalone OvtLyrMimic3:
+Capabilities:
   - Dynamic universe (CLI / file / watchlist / union)
   - Wilder RSI + nine-rules math aligned with ta_indicators
   - Real market/sector breadth when market_breadth_latest.json is available
@@ -36,13 +36,13 @@ Improvements vs standalone OvtLyrMimic3:
   - Verbose / briefing / min-score filters
 
 Usage examples:
-  python3 OvtLyrMimic4.py
-  python3 OvtLyrMimic4.py --tickers SMCI ARM TSM
-  python3 OvtLyrMimic4.py --file my_tickers.txt
-  python3 OvtLyrMimic4.py --union-watchlist
-  python3 OvtLyrMimic4.py --watchlist-only --verbose
-  python3 OvtLyrMimic4.py --no-expected-move --briefing
-  python3 OvtLyrMimic4.py --output logs/custom.txt
+  python3 nine_rules_independent.py
+  python3 nine_rules_independent.py --tickers SMCI ARM TSM
+  python3 nine_rules_independent.py --file my_tickers.txt
+  python3 nine_rules_independent.py --union-watchlist
+  python3 nine_rules_independent.py --watchlist-only --verbose
+  python3 nine_rules_independent.py --no-expected-move --briefing
+  python3 nine_rules_independent.py --output logs/custom.txt
 """
 
 from __future__ import annotations
@@ -67,7 +67,7 @@ except ImportError:
     sys.exit(1)
 
 # ---------------------------------------------------------------------------
-# Paths (same DATA_DIR convention as OvtLyrMimic.py / stock_screener.py)
+# Paths (same DATA_DIR convention as nine_rules_gate.py / stock_screener.py)
 # ---------------------------------------------------------------------------
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -77,10 +77,22 @@ DATA_DIR = os.environ.get(
 )
 LOGS_DIR = os.path.join(DATA_DIR, "logs")
 DEFAULT_PERSONAL_FILE = os.path.join(DATA_DIR, "tickers.txt")
-DEFAULT_WATCHLIST = os.path.join(DATA_DIR, "ovtlyr_watchlist.json")
+DEFAULT_WATCHLIST = os.path.join(DATA_DIR, "nine_rules_watchlist.json")
+LEGACY_WATCHLIST = os.path.join(DATA_DIR, "ovtlyr_watchlist.json")  # pre-rename
 DEFAULT_BREADTH = os.path.join(DATA_DIR, "market_breadth_latest.json")
 DEFAULT_CONSTITUENTS = os.path.join(DATA_DIR, "sp500_constituents.csv")
-DEFAULT_DAILY_LOG = os.path.join(LOGS_DIR, "MimicOVTLR-DailyOutput.log")
+DEFAULT_DAILY_LOG = os.path.join(LOGS_DIR, "nine_rules_independent.log")
+
+
+def resolve_watchlist_path(explicit: Optional[str] = None) -> str:
+    """Prefer nine_rules_watchlist.json; fall back to legacy filename if present."""
+    if explicit:
+        return explicit
+    if os.path.exists(DEFAULT_WATCHLIST):
+        return DEFAULT_WATCHLIST
+    if os.path.exists(LEGACY_WATCHLIST):
+        return LEGACY_WATCHLIST
+    return DEFAULT_WATCHLIST
 
 TRADING_DAYS_PER_YEAR = 252.0
 
@@ -436,7 +448,7 @@ def load_watchlist_stocks(
 ) -> Tuple[List[Dict[str, Any]], Optional[dict]]:
     """
     Return (list of stock dicts with at least 'ticker', raw watchlist dict or None).
-    Accepts MarketBreadth ovtlyr_watchlist.json shape.
+    Accepts MarketBreadth nine_rules_watchlist.json shape.
     """
     data = load_json(path)
     if not data:
@@ -663,7 +675,7 @@ def build_universe(
         meta["sources_used"].append("cli")
 
     use_watchlist = bool(watchlist_path) or watchlist_only or union_watchlist
-    wl_path = watchlist_path or DEFAULT_WATCHLIST
+    wl_path = resolve_watchlist_path(watchlist_path)
 
     if watchlist_only:
         stocks, raw = load_watchlist_stocks(wl_path, min_score=min_score)
@@ -958,7 +970,7 @@ def print_expected_moves(results: List[Dict[str, Any]]) -> None:
 
 
 def print_briefing(results: List[Dict[str, Any]], show_expected_move: bool = True) -> None:
-    print(f"## OVTLYR Nine Rules v4 ({datetime.now().strftime('%Y-%m-%d')})")
+    print(f"## Nine Rules Independent ({datetime.now().strftime('%Y-%m-%d')})")
     print()
     print(
         f"| {'Ticker':>6} | {'Source':>14} | {'Sector':>20} | "
@@ -1020,15 +1032,15 @@ def print_verbose_details(results: List[Dict[str, Any]], show_em: bool) -> None:
 
 
 def default_output_path() -> str:
-    """Dated report under logs/ (next free MimicOVTLR-v4-YYYYMMDD[-N].txt)."""
+    """Dated report under logs/ (next free nine_rules_independent-YYYYMMDD[-N].txt)."""
     os.makedirs(LOGS_DIR, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d")
-    base = os.path.join(LOGS_DIR, f"MimicOVTLR-v4-{stamp}.txt")
+    base = os.path.join(LOGS_DIR, f"nine_rules_independent-{stamp}.txt")
     if not os.path.exists(base):
         return base
     n = 2
     while True:
-        path = os.path.join(LOGS_DIR, f"MimicOVTLR-v4-{stamp}-{n}.txt")
+        path = os.path.join(LOGS_DIR, f"nine_rules_independent-{stamp}-{n}.txt")
         if not os.path.exists(path):
             return path
         n += 1
@@ -1040,19 +1052,19 @@ def default_output_path() -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="OVTLYR Nine Rules v4 — independent analysis with optional screener universe",
+        description="Nine Rules Independent - multi-universe analysis with optional screener feed",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  Core only:              python3 OvtLyrMimic4.py
-  Core ∪ screener:        python3 OvtLyrMimic4.py --union-watchlist
-  Screener only:          python3 OvtLyrMimic4.py --watchlist-only
-  Ad-hoc:                 python3 OvtLyrMimic4.py --tickers SMCI ARM
-  Personal file:          python3 OvtLyrMimic4.py --file tickers.txt
-  No core + watchlist:    python3 OvtLyrMimic4.py --no-core --watchlist PATH
-  Fast (no options IV):   python3 OvtLyrMimic4.py --no-expected-move
-  Markdown:               python3 OvtLyrMimic4.py --briefing
-  Daily log path:         logs/MimicOVTLR-DailyOutput.log (cron)
+  Core only:              python3 nine_rules_independent.py
+  Core ∪ screener:        python3 nine_rules_independent.py --union-watchlist
+  Screener only:          python3 nine_rules_independent.py --watchlist-only
+  Ad-hoc:                 python3 nine_rules_independent.py --tickers SMCI ARM
+  Personal file:          python3 nine_rules_independent.py --file tickers.txt
+  No core + watchlist:    python3 nine_rules_independent.py --no-core --watchlist PATH
+  Fast (no options IV):   python3 nine_rules_independent.py --no-expected-move
+  Markdown:               python3 nine_rules_independent.py --briefing
+  Daily log path:         logs/nine_rules_independent.log (cron)
         """,
     )
     parser.add_argument("--tickers", nargs="+", help="Ad-hoc tickers to include")
@@ -1066,7 +1078,7 @@ Examples:
         "--watchlist",
         type=str,
         default=None,
-        help=f"Path to ovtlyr_watchlist.json (default: {DEFAULT_WATCHLIST})",
+        help=f"Path to nine_rules_watchlist.json (default: {DEFAULT_WATCHLIST})",
     )
     parser.add_argument(
         "--union-watchlist",
@@ -1106,7 +1118,7 @@ Examples:
         "--output",
         type=str,
         default=None,
-        help=f"Write full report to this path (default: logs/MimicOVTLR-v4-YYYYMMDD.txt)",
+        help=f"Write full report to this path (default: logs/nine_rules_independent-YYYYMMDD.txt)",
     )
     parser.add_argument(
         "--no-save",
@@ -1133,11 +1145,9 @@ Examples:
         market_breadth_pct = breadth_data["sp500"].get("pct_above_50dma")
 
     # Watchlist path for union / only
-    wl_path = args.watchlist
-    if args.union_watchlist or args.watchlist_only:
-        wl_path = args.watchlist or DEFAULT_WATCHLIST
-    elif args.watchlist:
-        wl_path = args.watchlist
+    wl_path = None
+    if args.union_watchlist or args.watchlist_only or args.watchlist:
+        wl_path = resolve_watchlist_path(args.watchlist)
 
     entries, meta = build_universe(
         include_core=not args.no_core and not args.watchlist_only,
@@ -1164,7 +1174,7 @@ Examples:
         buf.write(s + "\n")
 
     emit("=" * 80)
-    emit("OVTLYR NINE RULES ANALYSIS - v4 (independent)")
+    emit("NINE RULES INDEPENDENT ANALYSIS")
     emit("=" * 80)
     emit(f"Run time:     {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     emit(f"TA engine:    {'MarketBreadth ta_indicators (shared)' if _HAS_SHARED_TA else 'embedded Wilder RSI'}")

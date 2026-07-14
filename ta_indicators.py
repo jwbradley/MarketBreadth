@@ -2,7 +2,7 @@
 """
 Shared technical analysis indicators for MarketBreadth tools.
 
-Used by stock_screener.py and OvtLyrMimic.py so scoring and the Nine Rules
+Used by stock_screener.py and nine_rules_gate.py so scoring and the Nine Rules
 see the same RSI, EMA, MACD, ATR, and divergence math.
 
 RSI uses Wilder's smoothing (industry standard).
@@ -255,7 +255,7 @@ def calculate_from_ohlcv(
 
 
 # ---------------------------------------------------------------------------
-# Nine Rules (shared) — used by screener and OvtLyrMimic
+# Nine Rules (shared) — used by screener and nine_rules_gate
 # ---------------------------------------------------------------------------
 
 def evaluate_nine_rules(
@@ -266,7 +266,7 @@ def evaluate_nine_rules(
     sector_threshold: float = 50.0,
 ) -> Dict[str, Any]:
     """
-    Evaluate OVTLYR-style nine rules from a precomputed indicator dict.
+    Evaluate multi-factor technical nine rules from a precomputed indicator dict.
 
     Returns:
       {

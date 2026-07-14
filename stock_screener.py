@@ -19,7 +19,7 @@ Usage:
   python3 stock_screener.py --briefing         # Markdown briefing
   python3 stock_screener.py --opportunities    # Best-opportunities section only
   python3 stock_screener.py --csv              # Export CSV
-  python3 stock_screener.py --watchlist        # Export for OvtLyrMimic.py
+  python3 stock_screener.py --watchlist        # Export for nine_rules_gate.py
 """
 
 import json
@@ -38,7 +38,7 @@ except ImportError:
     print("Run: pip install yfinance pandas numpy")
     sys.exit(1)
 
-# Shared indicators (same math as OvtLyrMimic)
+# Shared indicators (same math as nine_rules_gate)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ta_indicators import (  # noqa: E402
     calculate_from_ohlcv,
@@ -373,7 +373,7 @@ def analyze_sector(
         indicators['rules_detail'] = {
             k: v['passed'] for k, v in rules['rules'].items()
         }
-        indicators['ovtlyr_signal'] = nine_rules_signal(rules['rules_passed'])
+        indicators['nine_rules_signal_label'] = nine_rules_signal(rules['rules_passed'])
         indicators['signal'] = signal_label(indicators, indicators['score'], sector_type)
 
         results.append(indicators)
@@ -611,14 +611,14 @@ def show_opportunities(min_score=60, max_rows=10):
 
 
 def export_watchlist(output_path=None, min_score=60, top_per_sector=5, top_only_primary=True):
-    """Export watchlist for OvtLyrMimic.py. Prefers top-sector names."""
+    """Export watchlist for nine_rules_gate.py. Prefers top-sector names."""
     data = _load_results()
     if not data:
         print("No screener results found. Run screener first.")
         return
 
     if not output_path:
-        output_path = os.path.join(DATA_DIR, 'ovtlyr_watchlist.json')
+        output_path = os.path.join(DATA_DIR, 'nine_rules_watchlist.json')
 
     breadth = load_breadth() if os.path.exists(BREADTH_FILE) else None
 
@@ -699,7 +699,7 @@ def export_csv(output_path=None):
             rows.append(stock)
 
     fieldnames = [
-        'sector', 'sector_type', 'ticker', 'price', 'score', 'signal', 'ovtlyr_signal',
+        'sector', 'sector_type', 'ticker', 'price', 'score', 'signal', 'nine_rules_signal_label',
         'rules_passed', 'rules_total', 'trend_score', 'ma_aligned', 'ema_aligned',
         'above_20dma', 'above_50dma', 'above_200dma',
         'sma20', 'sma50', 'sma200', 'rsi', 'macd', 'macd_signal', 'macd_hist',
@@ -743,7 +743,7 @@ Examples:
     parser.add_argument('--csv', nargs='?', const='', default=None, help='Export to CSV')
     parser.add_argument(
         '--watchlist', nargs='?', const='', default=None,
-        help='Export watchlist for OvtLyrMimic.py',
+        help='Export watchlist for nine_rules_gate.py',
     )
 
     args = parser.parse_args()

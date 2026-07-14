@@ -7,16 +7,40 @@ Versions are informal tags for a personal/public toolkit (not necessarily PyPI r
 
 ---
 
+## [2.2.0] — 2026-07-14
+
+### Renamed (no commercial brand references)
+
+Removed former **OvtLyr / OVTLYR / Mimic*** names so the project does not imply affiliation with any commercial charting site. Functionality is unchanged; only identifiers, paths, and docs were rebranded.
+
+| Before | After |
+|--------|--------|
+| `OvtLyrMimic.py` | `nine_rules_gate.py` |
+| `OvtLyrMimic4.py` | `nine_rules_independent.py` |
+| `README-OvtLyrMimic.md` | `README-nine_rules.md` |
+| `ovtlyr_watchlist.json` | `nine_rules_watchlist.json` |
+| `logs/MimicOVTLR-DailyOutput.log` | `logs/nine_rules_independent.log` |
+| Result field `ovtlyr_signal` | `nine_rules_signal_label` |
+
+Daily runners (`.sh` / `.bat`) call the new script names. Watchlist loaders still accept the **legacy** `ovtlyr_watchlist.json` filename if the new file is not present (temporary compatibility).
+
+### Documentation
+
+- README suite, BEST_PRACTICES, CONTRIBUTING, and this changelog updated for the new names.
+- Explicit note: independent educational checklist; not affiliated with third-party commercial platforms.
+
+---
+
 ## [2.1.1] — 2026-07-14
 
 ### Windows / encoding
 
-- **ASCII-safe CLI text** in user-facing `print` paths for `stock_screener.py`, `OvtLyrMimic.py`, and `OvtLyrMimic4.py`. Python 3.12 on Windows often uses **cp1252** for stdout; characters above U+00FF (e.g. em dash `—`, arrows `→`, √, σ, ≈, × in some contexts) raise `UnicodeEncodeError` when redirected to a log file or console.
+- **ASCII-safe CLI text** in user-facing `print` paths for `stock_screener.py`, `nine_rules_gate.py`, and `nine_rules_independent.py`. Python 3.12 on Windows often uses **cp1252** for stdout; characters above U+00FF (e.g. em dash `—`, arrows `→`, √, σ, ≈, × in some contexts) raise `UnicodeEncodeError` when redirected to a log file or console.
 - Replacements used in output: `->` / `-` for arrows and em dashes; `sqrt()` / `1-sigma` / `x` / `~` / `+/-` instead of √ / σ / × / ≈ / ± where those appeared in formula notes.
 
 ### Added
 
-- **`getStockScreenerData.bat`**: Windows daily orchestrator aligned with the Linux shell pipeline (collect → screen → brief, including `--opportunities` and `OvtLyrMimic4.py`). Edit the `LOG=` path before first run; assumes `python` on `PATH` and scripts in the working directory (or your usual layout next to GoldenRatios tools).
+- **`getStockScreenerData.bat`**: Windows daily orchestrator aligned with the Linux shell pipeline (collect → screen → brief, including `--opportunities` and `nine_rules_independent.py`). Edit the `LOG=` path before first run; assumes `python` on `PATH` and scripts in the working directory (or your usual layout next to GoldenRatios tools).
 
 ### Documentation
 
@@ -40,8 +64,8 @@ Markdown docs may still use Unicode for readability; **runtime CLI strings** sho
 
 ### Added
 
-- **`OvtLyrMimic4.py`**: independent nine-rules re-score with layered universe (core book ∪ personal `tickers.txt` ∪ screener watchlist ∪ CLI). Optional overlap report vs funnel names. Uses shared `ta_indicators` when available.
-- Daily pipeline step in **`getTodaysStockScreenerData.sh`**: runs v4 with `--union-watchlist --briefing`; full report → `logs/MimicOVTLR-DailyOutput.log`.
+- **`nine_rules_independent.py`**: independent nine-rules re-score with layered universe (core book ∪ personal `tickers.txt` ∪ screener watchlist ∪ CLI). Optional overlap report vs funnel names. Uses shared `ta_indicators` when available.
+- Daily pipeline step in **`getTodaysStockScreenerData.sh`**: runs v4 with `--union-watchlist --briefing`; full report → `logs/nine_rules_independent.log`.
 
 ---
 
@@ -50,7 +74,7 @@ Markdown docs may still use Unicode for readability; **runtime CLI strings** sho
 ### Architecture (Option C)
 
 - Added **`ta_indicators.py`**: shared Wilder RSI, EMA/MACD/ATR/BB, divergence, nine rules, and sector composite ranking.
-- **`stock_screener.py`** and **`OvtLyrMimic.py`** both consume the shared module so scores and rules stay aligned.
+- **`stock_screener.py`** and **`nine_rules_gate.py`** both consume the shared module so scores and rules stay aligned.
 
 ### Accuracy
 
@@ -63,7 +87,7 @@ Markdown docs may still use Unicode for readability; **runtime CLI strings** sho
 
 ### Orchestration
 
-- **`getTodaysStockScreenerData.sh`**: soft-fail per step, clearer daily report order, **`--opportunities`** section before full tables, OvtLyr as final gate.
+- **`getTodaysStockScreenerData.sh`**: soft-fail per step, clearer daily report order, **`--opportunities`** section before full tables, nine-rules gate as final gate.
 - New CLI: `stock_screener.py --opportunities`.
 
 ### Documentation
@@ -78,7 +102,7 @@ Markdown docs may still use Unicode for readability; **runtime CLI strings** sho
 
 - `market_breadth_collector.py` — S&P 500 and GICS sector breadth.
 - `stock_screener.py` — technical scores for top/bottom sectors.
-- `OvtLyrMimic.py` — nine-rules analysis (initially separate indicator math).
+- `nine_rules_gate.py` — nine-rules analysis (initially separate indicator math).
 - Daily bash orchestrator and initial READMEs.
 
 ---

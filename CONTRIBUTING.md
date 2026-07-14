@@ -42,23 +42,23 @@ $env:MARKET_BREADTH_DIR = "C:\Temp\marketbreadth-test"
 ## Validation checklist
 
 ```bash
-python3 -m py_compile ta_indicators.py stock_screener.py OvtLyrMimic.py OvtLyrMimic4.py market_breadth_collector.py
+python3 -m py_compile ta_indicators.py stock_screener.py nine_rules_gate.py nine_rules_independent.py market_breadth_collector.py
 bash -n getTodaysStockScreenerData.sh
 
 # After a successful breadth collect:
 python3 market_breadth_collector.py
 python3 stock_screener.py --sector "Utilities" --top-stocks 5
 python3 stock_screener.py --watchlist
-python3 OvtLyrMimic.py --briefing
+python3 nine_rules_gate.py --briefing
 ```
 
-Confirm that `rules_passed` for the same ticker is consistent between screener JSON and OvtLyr.
+Confirm that `rules_passed` for the same ticker is consistent between screener JSON and nine-rules gate.
 
 On Windows, also confirm that redirecting a briefing to a file does not raise `UnicodeEncodeError`:
 
 ```bat
 python stock_screener.py --opportunities > nul
-python OvtLyrMimic.py --briefing > nul
+python nine_rules_gate.py --briefing > nul
 ```
 
 ## Pull request tips

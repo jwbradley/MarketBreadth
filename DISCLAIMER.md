@@ -31,6 +31,10 @@ Nothing in this repository constitutes investment advice, a recommendation to bu
 
 ## License note
 
-This project is released under [CC0 1.0 Universal](LICENSE) (public domain dedication) **as to the software and documentation text**. That does **not** transfer any rights in third-party market data, trademarks (including product names referenced for interoperability), or imply any warranty.
+This project is released under [CC0 1.0 Universal](LICENSE) (public domain dedication) **as to the software and documentation text**. That does **not** transfer any rights in third-party market data or trademarks, or imply any warranty.
+
+## No affiliation
+
+The nine-rules checklist tools (`nine_rules_gate.py`, `nine_rules_independent.py`) are **independent educational software**. They are **not** affiliated with, endorsed by, sponsored by, or official products of any commercial charting or research platform. Any similarity to multi-factor technical checklists discussed publicly is conceptual only.
 
 **By using this software, you acknowledge that you have read and understood this disclaimer.**

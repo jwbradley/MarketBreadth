@@ -1,26 +1,26 @@
 #!/usr/bin/env python3
 """
-OVTLYR Nine Rules Analysis (v3)
+Nine Rules Gate
 
-Uses shared ta_indicators.py (same math as stock_screener.py).
+Short-list checklist using shared ta_indicators.py (same math as stock_screener.py).
 Integrates with market breadth collector and stock screener watchlists.
 
 Also reports IV-based expected move (1-sigma) from the nearest options
-expiration — see Expected-Move-Guide.md.
+expiration - see Expected-Move-Guide.md.
 
 Data sources:
-  - ovtlyr_watchlist.json (from stock_screener.py --watchlist)
+  - nine_rules_watchlist.json (from stock_screener.py --watchlist)
   - market_breadth_latest.json (from market_breadth_collector.py)
   - Yahoo options chain for expected move / ATM IV
   - Or: manual ticker list via --tickers
 
 Usage:
-  python3 OvtLyrMimic.py                           # Watchlist from screener
-  python3 OvtLyrMimic.py --tickers AAPL MSFT NVDA  # Specific tickers
-  python3 OvtLyrMimic.py --watchlist path/to/file
-  python3 OvtLyrMimic.py --briefing
-  python3 OvtLyrMimic.py --verbose
-  python3 OvtLyrMimic.py --no-expected-move        # Skip options chain fetch
+  python3 nine_rules_gate.py                           # Watchlist from screener
+  python3 nine_rules_gate.py --tickers AAPL MSFT NVDA  # Specific tickers
+  python3 nine_rules_gate.py --watchlist path/to/file
+  python3 nine_rules_gate.py --briefing
+  python3 nine_rules_gate.py --verbose
+  python3 nine_rules_gate.py --no-expected-move        # Skip options chain fetch
 """
 
 import json
@@ -50,7 +50,7 @@ DATA_DIR = os.environ.get(
     'MARKET_BREADTH_DIR',
     os.environ.get('GSR_DATA_DIR', os.path.dirname(os.path.abspath(__file__))),
 )
-WATCHLIST_FILE = os.path.join(DATA_DIR, 'ovtlyr_watchlist.json')
+WATCHLIST_FILE = os.path.join(DATA_DIR, 'nine_rules_watchlist.json')
 BREADTH_FILE = os.path.join(DATA_DIR, 'market_breadth_latest.json')
 CONSTITUENTS_FILE = os.path.join(DATA_DIR, 'sp500_constituents.csv')
 
@@ -59,11 +59,19 @@ TRADING_DAYS_PER_YEAR = 252.0
 
 
 def load_watchlist(watchlist_path=None):
-    path = watchlist_path or WATCHLIST_FILE
-    if not os.path.exists(path):
-        return None
-    with open(path, 'r') as f:
-        return json.load(f)
+    """Load screener watchlist JSON (prefers nine_rules_watchlist.json)."""
+    candidates = []
+    if watchlist_path:
+        candidates.append(watchlist_path)
+    else:
+        candidates.append(WATCHLIST_FILE)
+        # Legacy filename from pre-rename installs
+        candidates.append(os.path.join(DATA_DIR, 'ovtlyr_watchlist.json'))
+    for path in candidates:
+        if path and os.path.exists(path):
+            with open(path, 'r') as f:
+                return json.load(f)
+    return None
 
 
 def load_breadth():
@@ -373,7 +381,7 @@ def analyze_ticker(
 
 
 def run_analysis(tickers, market_breadth_pct=None, breadth_data=None, verbose=True):
-    """Run OVTLYR analysis on a list of tickers or watchlist dicts."""
+    """Run nine-rules gate on a list of tickers or watchlist dicts."""
     try:
         spy_hist = yf.Ticker('SPY').history(period='1y', auto_adjust=True)
         spy_close = spy_hist['Close'] if not spy_hist.empty else None
@@ -447,7 +455,7 @@ def print_summary(results, show_expected_move=True):
 
 
 def print_briefing(results, show_expected_move=True):
-    print(f"## OVTLYR Nine Rules Analysis ({datetime.now().strftime('%Y-%m-%d')})")
+    print(f"## Nine Rules Gate ({datetime.now().strftime('%Y-%m-%d')})")
     print()
     print(f"| {'Ticker':>6} | {'Sector':>25} | {'Signal':>12} | {'Rules':>5} | {'RS/SPY':>7} |")
     print(f"|{'-' * 8}|{'-' * 27}|{'-' * 14}|{'-' * 7}|{'-' * 9}|")
@@ -467,16 +475,16 @@ def print_briefing(results, show_expected_move=True):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='OVTLYR Nine Rules — shared indicators + IV expected move',
+        description='Nine Rules Gate - shared indicators + IV expected move',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  From watchlist:    python3 OvtLyrMimic.py
-  Specific tickers:  python3 OvtLyrMimic.py --tickers AAPL MSFT NVDA AMD
-  Custom watchlist:  python3 OvtLyrMimic.py --watchlist my_stocks.json
-  Markdown output:   python3 OvtLyrMimic.py --briefing
-  Verbose details:   python3 OvtLyrMimic.py --verbose
-  Skip options/IV:   python3 OvtLyrMimic.py --no-expected-move
+  From watchlist:    python3 nine_rules_gate.py
+  Specific tickers:  python3 nine_rules_gate.py --tickers AAPL MSFT NVDA AMD
+  Custom watchlist:  python3 nine_rules_gate.py --watchlist my_stocks.json
+  Markdown output:   python3 nine_rules_gate.py --briefing
+  Verbose details:   python3 nine_rules_gate.py --verbose
+  Skip options/IV:   python3 nine_rules_gate.py --no-expected-move
         """,
     )
     parser.add_argument('--tickers', nargs='+', help='Specific tickers to analyze')
@@ -509,7 +517,7 @@ Examples:
         watchlist = load_watchlist(args.watchlist)
         if watchlist is None:
             print("No watchlist found. Run: python3 stock_screener.py --watchlist")
-            print("Or specify tickers: python3 OvtLyrMimic.py --tickers AAPL MSFT")
+            print("Or specify tickers: python3 nine_rules_gate.py --tickers AAPL MSFT")
             sys.exit(1)
 
         if watchlist.get('market_breadth_pct') is not None:

@@ -15,7 +15,7 @@ Regime / macro context  →  Sector breadth  →  Stock candidates  →  Nine-ru
 | Macro (optional) | GoldenRatios collectors | Risk-on / metals regime context |
 | Sector map | `market_breadth_collector.py` | Where participation is strong or weak |
 | Candidates | `stock_screener.py` | Who looks interesting *inside* those sectors |
-| Checklist | `OvtLyrMimic.py` | Binary pass/fail on a short watchlist |
+| Checklist | `nine_rules_gate.py` | Binary pass/fail on a short watchlist |
 
 Do not skip straight to “Strong Buy” labels without reading sector and market breadth first.
 
@@ -34,7 +34,7 @@ If the latest bar date is not the session you expect, treat labels as stale unti
 
 ## 3. Use the shared indicator path
 
-- `stock_screener.py` and `OvtLyrMimic.py` both use **`ta_indicators.py`**.
+- `stock_screener.py` and `nine_rules_gate.py` both use **`ta_indicators.py`**.
 - Do not fork a second RSI/MACD implementation in ad-hoc scripts; scores and rules will diverge.
 - If you change indicator math, change it once in `ta_indicators.py` and re-run both tools.
 
@@ -75,7 +75,7 @@ Still:
 ## 7. Keep the watchlist short
 
 - Export with `stock_screener.py --watchlist` (score floor, top per sector).
-- Run `OvtLyrMimic.py` on that list, not the entire S&P 500.
+- Run `nine_rules_gate.py` on that list, not the entire S&P 500.
 - If more than ~15–20 names pass, raise the score threshold or restrict to top-sector only.
 
 ---
@@ -99,8 +99,8 @@ Suggested report order (already in both runners):
 2. Breadth briefing  
 3. **Best opportunities** (`--opportunities`)  
 4. Full screener briefing  
-5. OvtLyr gate (`--briefing`)  
-6. OvtLyrMimic4 independent re-score (`--union-watchlist`)
+5. nine-rules gate (`--briefing`)  
+6. Independent nine-rules scan (`nine_rules_independent.py --union-watchlist`)
 
 Linux: non-zero exit count from the shell script means at least one step failed—wire that to monitoring if you care about uptime. Windows: open the configured log and confirm every “Running:” step completed.
 
@@ -136,10 +136,10 @@ Use ATR% and liquidity as **inputs** to your own risk rules. Cap risk per name a
 
 After editing indicators or scores:
 
-1. `python3 -m py_compile ta_indicators.py stock_screener.py OvtLyrMimic.py OvtLyrMimic4.py market_breadth_collector.py`
+1. `python3 -m py_compile ta_indicators.py stock_screener.py nine_rules_gate.py nine_rules_independent.py market_breadth_collector.py`
 2. Run breadth collect once.
 3. Run screener on one sector (`--sector "Utilities" --top-stocks 5`).
-4. Confirm `rules_passed` on the same ticker matches between screener output and `OvtLyrMimic.py`.
+4. Confirm `rules_passed` on the same ticker matches between screener output and `nine_rules_gate.py`.
 5. On Windows: redirect a briefing to a file and confirm no `UnicodeEncodeError`.
 6. Only then run the full daily script (`.sh` or `.bat`).
 
@@ -160,7 +160,7 @@ After editing indicators or scores:
 |-----|---------|
 | [README.md](README.md) | Project overview and pipeline |
 | [README-stock_screener.md](README-stock_screener.md) | Screener details |
-| [README-OvtLyrMimic.md](README-OvtLyrMimic.md) | Nine rules tool |
+| [README-nine_rules.md](README-nine_rules.md) | Nine rules tool |
 | [README-ta_indicators.md](README-ta_indicators.md) | Shared indicator library |
 | [DISCLAIMER.md](DISCLAIMER.md) | Legal / risk disclaimer |
 | [CHANGELOG.md](CHANGELOG.md) | Version history |
