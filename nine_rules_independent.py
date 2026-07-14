@@ -4,23 +4,23 @@ Nine Rules Independent - multi-universe checklist (lives in MarketBreadth)
 
 Re-scores names independently of the funnel path in nine_rules_gate.py so you can
 compare core book vs what stock_screener bubbled. Optionally *reads* local
-watchlist / breadth JSON — does not require re-running collectors first.
+watchlist / breadth JSON - does not require re-running collectors first.
 
 Universe layers (combine freely):
   1. Core always     Mag7 + liquid large-caps + sector ETFs (+ SPY/QQQ/GLD/SLV)
-  2. Personal book   tickers.txt (or --file) — one symbol per line
+  2. Personal book   tickers.txt (or --file) - one symbol per line
   3. Screener feed   --watchlist PATH to nine_rules_watchlist.json
   4. CLI ad-hoc      --tickers AAPL FOO BAR
 
 Defaults:
   python3 nine_rules_independent.py
-      → core only (or core + personal file if present)
+      -> core only (or core + personal file if present)
 
   python3 nine_rules_independent.py --union-watchlist
-      → core ∪ personal ∪ screener watchlist (best for match checks)
+      -> core + personal + screener watchlist (best for match checks)
 
   python3 nine_rules_independent.py --watchlist-only
-      → only what bubbled from the screener
+      -> only what bubbled from the screener
 
 Daily cron (getTodaysStockScreenerData.sh) writes:
   logs/nine_rules_independent.log
@@ -113,7 +113,7 @@ except Exception:
 
 
 # ---------------------------------------------------------------------------
-# Core universe (intentional static layer — liquid / always-on book)
+# Core universe (intentional static layer - liquid / always-on book)
 # Speculative names belong in tickers.txt, not here.
 # ---------------------------------------------------------------------------
 
@@ -386,7 +386,7 @@ def nine_rules_signal(rules_passed: int) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Data loaders (optional MarketBreadth files — soft fail)
+# Data loaders (optional MarketBreadth files - soft fail)
 # ---------------------------------------------------------------------------
 
 def load_json(path: str) -> Optional[dict]:
@@ -589,7 +589,7 @@ def attach_expected_moves(results: List[Dict[str, Any]], verbose: bool = True) -
             if em:
                 print(
                     f"  {ticker}: IV {em['iv']:.1f}% | "
-                    f"daily ±${em['daily_move']:.2f} ({em['daily_pct']:.1f}%) | "
+                    f"daily +/-${em['daily_move']:.2f} ({em['daily_pct']:.1f}%) | "
                     f"exp {em['expiration']} ({em['dte']} DTE)"
                 )
             else:
@@ -626,9 +626,9 @@ def build_universe(
     Build de-duplicated universe with provenance.
 
     Modes:
-      watchlist_only  → only watchlist (ignore core/personal unless also on CLI)
-      union_watchlist → core ∪ personal ∪ watchlist ∪ CLI
-      default         → core (if include_core) ∪ personal ∪ CLI
+      watchlist_only  -> only watchlist (ignore core/personal unless also on CLI)
+      union_watchlist -> core + personal + watchlist + CLI
+      default         -> core (if include_core) + personal + CLI
                         (+ watchlist if --watchlist given without --watchlist-only)
     """
     meta: Dict[str, Any] = {
@@ -954,9 +954,9 @@ def print_expected_moves(results: List[Dict[str, Any]]) -> None:
             moves.append(em)
             print(
                 f"  {r['ticker']:<6}  ${float(price):>8.2f}  IV {em['iv']:>5.1f}%  "
-                f"daily ±${em['daily_move']:.2f} ({em['daily_pct']:.1f}%)  "
-                f"weekly ±${em['weekly_move']:.2f}  "
-                f"to-exp ±${em['exp_move']:.2f}  DTE {em['dte']} ({em['expiration']})"
+                f"daily +/-${em['daily_move']:.2f} ({em['daily_pct']:.1f}%)  "
+                f"weekly +/-${em['weekly_move']:.2f}  "
+                f"to-exp +/-${em['exp_move']:.2f}  DTE {em['dte']} ({em['expiration']})"
             )
         else:
             print(f"  {r['ticker']:<6}  expected move N/A")
@@ -964,7 +964,7 @@ def print_expected_moves(results: List[Dict[str, Any]]) -> None:
         avg_iv = sum(m["iv"] for m in moves) / len(moves)
         avg_d = sum(m["daily_pct"] for m in moves) / len(moves)
         print(
-            f"\n  Avg IV: {avg_iv:.1f}% | Avg daily EM: ±{avg_d:.2f}% | "
+            f"\n  Avg IV: {avg_iv:.1f}% | Avg daily EM: +/-{avg_d:.2f}% | "
             f"Price x IV / sqrt(252) (1-sigma). Not a guarantee of realized range."
         )
 
@@ -1017,15 +1017,15 @@ def print_verbose_details(results: List[Dict[str, Any]], show_em: bool) -> None:
         print(f"  {r['ticker']} - {r['signal']} ({r.get('rules_passed', 0)}/9)  [{r.get('source', '?')}]")
         print(f"{'=' * 60}")
         for rule_name, status in (r.get("details") or {}).items():
-            symbol = "✓" if status.get("passed") else "✗"
+            symbol = "Y" if status.get("passed") else "N"
             print(f"  {symbol} {rule_name}")
             print(f"    {status.get('details', '')}")
         em = r.get("expected_move")
         if em:
             print(
                 f"  [i] Expected move: IV {em['iv']:.1f}% | "
-                f"daily ±${em['daily_move']:.2f} ({em['daily_pct']:.1f}%) | "
-                f"to {em['expiration']} ±${em['exp_move']:.2f} ({em['dte']} DTE)"
+                f"daily +/-${em['daily_move']:.2f} ({em['daily_pct']:.1f}%) | "
+                f"to {em['expiration']} +/-${em['exp_move']:.2f} ({em['dte']} DTE)"
             )
         elif show_em:
             print("  [i] Expected move: N/A")
@@ -1057,7 +1057,7 @@ def main() -> None:
         epilog="""
 Examples:
   Core only:              python3 nine_rules_independent.py
-  Core ∪ screener:        python3 nine_rules_independent.py --union-watchlist
+  Core + screener:        python3 nine_rules_independent.py --union-watchlist
   Screener only:          python3 nine_rules_independent.py --watchlist-only
   Ad-hoc:                 python3 nine_rules_independent.py --tickers SMCI ARM
   Personal file:          python3 nine_rules_independent.py --file tickers.txt

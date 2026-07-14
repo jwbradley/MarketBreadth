@@ -5,10 +5,10 @@
 #          ~/myPrograms/KSI/MarketBreadth/logs/nine_rules_independent.log  (nine_rules_independent)
 # LOG:     ~/myPrograms/KSI/MarketBreadth/logs/errors.log
 # CRON:    30 15,7,8 * * 1-5 ~/myPrograms/KSI/MarketBreadth/getTodaysStockScreenerData.sh > ~/myPrograms/KSI/MarketBreadth/logs/errors.log 2>&1
-# Prefer post-close (~16:30–17:45 CT) for clean Yahoo prints; morning runs re-report prior close.
+# Prefer post-close (~16:30-17:45 CT) for clean Yahoo prints; morning runs re-report prior close.
 
 set -uo pipefail
-# Note: set -e intentionally NOT used — soft-fail per step so one collector
+# Note: set -e intentionally NOT used - soft-fail per step so one collector
 # cannot abort breadth/screener/opportunities reporting.
 
 cd ~/myPrograms/KSI/
@@ -119,25 +119,25 @@ run_report "stock_screener --briefing" \
 run_report "nine_rules_gate" \
   $VENV_PYTHON MarketBreadth/nine_rules_gate.py --briefing
 
-# Independent nine-rules scan: re-scores core book ∪ screener watchlist (no second cron).
-# EM skipped here — MarketBreadth/nine_rules_gate.py already reports ATM IV on funnel names.
+# Independent nine-rules scan: re-scores core book + screener watchlist (no second cron).
+# EM skipped here - MarketBreadth/nine_rules_gate.py already reports ATM IV on funnel names.
 # Full independent report -> logs/nine_rules_independent.log (overwritten each run).
 # A short pointer is left in the main MarketBreadth daily log.
 NR_INDEP_LOG=~/myPrograms/KSI/MarketBreadth/logs/nine_rules_independent.log
 mkdir -p "$(dirname "$NR_INDEP_LOG")"
 {
   echo ""
-  echo "<!-- nine_rules_independent (core∪screener re-score) @ $(date '+%Y-%m-%d %H:%M:%S') -->"
+  echo "<!-- nine_rules_independent (core+screener re-score) @ $(date '+%Y-%m-%d %H:%M:%S') -->"
   if $VENV_PYTHON MarketBreadth/nine_rules_independent.py \
       --union-watchlist --briefing --no-expected-move --no-save \
       > "$NR_INDEP_LOG" 2>> "$ERR_FILE"
   then
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Completed: nine_rules_independent → $NR_INDEP_LOG"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Completed: nine_rules_independent -> $NR_INDEP_LOG"
   else
     rc=$?
     FAILURES=$((FAILURES + 1))
     FAIL_LIST+=("nine_rules_independent (exit $rc)")
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] FAILED: nine_rules_independent (exit $rc) — see $NR_INDEP_LOG / $ERR_FILE"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] FAILED: nine_rules_independent (exit $rc) - see $NR_INDEP_LOG / $ERR_FILE"
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] FAILED: nine_rules_independent (exit $rc)" >> "$ERR_FILE"
   fi
 } >> "$LOG_FILE"

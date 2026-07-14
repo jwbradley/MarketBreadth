@@ -255,7 +255,7 @@ def calculate_from_ohlcv(
 
 
 # ---------------------------------------------------------------------------
-# Nine Rules (shared) — used by screener and nine_rules_gate
+# Nine Rules (shared) - used by screener and nine_rules_gate
 # ---------------------------------------------------------------------------
 
 def evaluate_nine_rules(
@@ -293,7 +293,7 @@ def evaluate_nine_rules(
     r1 = bool(indicators.get('ema_aligned', price > e10 > e20 > e50))
     # Rule 2: Signal alignment
     r2 = (price > e20) and price_rising
-    # Rule 3: Market breadth (fail closed if unknown — do not invent SPY proxies here)
+    # Rule 3: Market breadth (fail closed if unknown - do not invent SPY proxies here)
     if market_breadth_pct is not None:
         r3 = market_breadth_pct >= market_threshold
         r3_detail = (

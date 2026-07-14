@@ -238,7 +238,7 @@ def show_status():
     with open(LATEST_FILE, 'r') as f:
         data = json.load(f)
 
-    print(f"Market Breadth — {data['date']}")
+    print(f"Market Breadth - {data['date']}")
     print(f"Generated: {data['generated']}")
     print()
 
@@ -343,7 +343,7 @@ def export_csv(output_path=None):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Market Breadth Collector — S&P 500 and GICS sector breadth indicators',
+        description='Market Breadth Collector - S&P 500 and GICS sector breadth indicators',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:

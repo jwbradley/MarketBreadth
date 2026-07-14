@@ -54,7 +54,7 @@ WATCHLIST_FILE = os.path.join(DATA_DIR, 'nine_rules_watchlist.json')
 BREADTH_FILE = os.path.join(DATA_DIR, 'market_breadth_latest.json')
 CONSTITUENTS_FILE = os.path.join(DATA_DIR, 'sp500_constituents.csv')
 
-# Trading days convention for annualized IV → horizon move
+# Trading days convention for annualized IV -> horizon move
 TRADING_DAYS_PER_YEAR = 252.0
 
 
@@ -175,7 +175,7 @@ def get_expected_move(ticker: str, price: float, max_expirations_to_try: int = 5
       weekly = price * IV * sqrt(5) / sqrt(252)
       to_exp = price * IV * sqrt(DTE) / sqrt(252)
 
-    Shortcut often cited: daily ≈ price * IV / 16  (since sqrt(252) ≈ 15.87).
+    Shortcut often cited: daily ~ price * IV / 16  (since sqrt(252) ~ 15.87).
     """
     if price is None or price <= 0:
         return None
@@ -242,7 +242,7 @@ def attach_expected_moves(results: List[Dict[str, Any]], verbose: bool = True) -
             if em:
                 print(
                     f"  {ticker}: IV {em['iv']:.1f}% | "
-                    f"daily ±${em['daily_move']:.2f} ({em['daily_pct']:.1f}%) | "
+                    f"daily +/-${em['daily_move']:.2f} ({em['daily_pct']:.1f}%) | "
                     f"exp {em['expiration']} ({em['dte']} DTE)"
                 )
             else:
@@ -251,7 +251,7 @@ def attach_expected_moves(results: List[Dict[str, Any]], verbose: bool = True) -
 
 def print_expected_moves(results: List[Dict[str, Any]], markdown: bool = True) -> None:
     """Print expected move table (markdown or plain). Uses pre-attached expected_move when present."""
-    title = f"Expected Move (1-sigma) — {datetime.now().strftime('%Y-%m-%d')}"
+    title = f"Expected Move (1-sigma) - {datetime.now().strftime('%Y-%m-%d')}"
     if markdown:
         print(f"\n## {title}")
         print()
@@ -543,7 +543,7 @@ Examples:
     if args.verbose and results:
         for r in results:
             print(f"\n{'=' * 60}")
-            print(f"  {r['ticker']} — {r['signal']} ({r['rules_passed']}/9)")
+            print(f"  {r['ticker']} - {r['signal']} ({r['rules_passed']}/9)")
             print(f"{'=' * 60}")
             if 'details' in r:
                 for rule_name, status in r['details'].items():
@@ -554,8 +554,8 @@ Examples:
             if em:
                 print(
                     f"  [i] Expected move: IV {em['iv']:.1f}% | "
-                    f"daily ±${em['daily_move']:.2f} ({em['daily_pct']:.1f}%) | "
-                    f"to {em['expiration']} ±${em['exp_move']:.2f} ({em['dte']} DTE)"
+                    f"daily +/-${em['daily_move']:.2f} ({em['daily_pct']:.1f}%) | "
+                    f"to {em['expiration']} +/-${em['exp_move']:.2f} ({em['dte']} DTE)"
                 )
             elif show_em:
                 print("  [i] Expected move: N/A")

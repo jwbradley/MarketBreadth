@@ -7,6 +7,13 @@ Versions are informal tags for a personal/public toolkit (not necessarily PyPI r
 
 ---
 
+## [2.2.1] — 2026-07-14
+
+### Windows encoding (follow-up)
+
+- Removed remaining non-ASCII from **runtime** Python / shell strings: verbose `Y`/`N` rule marks (was check/cross), `+/-` (was ±), `->` / `-` (was arrows / em dashes), set-union wording as `+` (was ∪), `~` (was ≈).
+- `.py`, `.sh`, and `.bat` sources under MarketBreadth are pure ASCII so `PYTHONIOENCODING=cp1252` redirects do not raise `UnicodeEncodeError` on any CLI path (including `--verbose` and `--help` text).
+
 ## [2.2.0] — 2026-07-14
 
 ### Renamed (no commercial brand references)
