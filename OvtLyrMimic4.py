@@ -864,7 +864,7 @@ def print_overlap_report(
         wl_only = sorted(wl - core)
         print(f"\nIn both core and screener watchlist ({len(both)}):")
         print("  " + (", ".join(both) if both else "(none)"))
-        print(f"\nScreener-only — not in core ({len(wl_only)}):")
+        print(f"\nScreener-only - not in core ({len(wl_only)}):")
         print("  " + (", ".join(wl_only) if wl_only else "(none)"))
         # High-conviction on screener-only
         strong_wl_only = [
@@ -931,7 +931,7 @@ def print_summary(results: List[Dict[str, Any]], show_expected_move: bool = True
 
 
 def print_expected_moves(results: List[Dict[str, Any]]) -> None:
-    title = f"Expected Move (1-sigma) — {datetime.now().strftime('%Y-%m-%d')}"
+    title = f"Expected Move (1-sigma) - {datetime.now().strftime('%Y-%m-%d')}"
     print(f"\n{title}")
     print("-" * 100)
     moves = []
@@ -953,7 +953,7 @@ def print_expected_moves(results: List[Dict[str, Any]]) -> None:
         avg_d = sum(m["daily_pct"] for m in moves) / len(moves)
         print(
             f"\n  Avg IV: {avg_iv:.1f}% | Avg daily EM: ±{avg_d:.2f}% | "
-            f"Price × IV / √252 (1σ). Not a guarantee of realized range."
+            f"Price x IV / sqrt(252) (1-sigma). Not a guarantee of realized range."
         )
 
 
@@ -1002,7 +1002,7 @@ def print_briefing(results: List[Dict[str, Any]], show_expected_move: bool = Tru
 def print_verbose_details(results: List[Dict[str, Any]], show_em: bool) -> None:
     for r in results:
         print(f"\n{'=' * 60}")
-        print(f"  {r['ticker']} — {r['signal']} ({r.get('rules_passed', 0)}/9)  [{r.get('source', '?')}]")
+        print(f"  {r['ticker']} - {r['signal']} ({r.get('rules_passed', 0)}/9)  [{r.get('source', '?')}]")
         print(f"{'=' * 60}")
         for rule_name, status in (r.get("details") or {}).items():
             symbol = "✓" if status.get("passed") else "✗"
@@ -1164,7 +1164,7 @@ Examples:
         buf.write(s + "\n")
 
     emit("=" * 80)
-    emit("OVTLYR NINE RULES ANALYSIS — v4 (independent)")
+    emit("OVTLYR NINE RULES ANALYSIS - v4 (independent)")
     emit("=" * 80)
     emit(f"Run time:     {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     emit(f"TA engine:    {'MarketBreadth ta_indicators (shared)' if _HAS_SHARED_TA else 'embedded Wilder RSI'}")

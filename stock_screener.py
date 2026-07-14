@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Stock Screener — Technical Analysis of Top/Bottom Sector Leaders
+Stock Screener - Technical Analysis of Top/Bottom Sector Leaders
 
 Reads market breadth data to identify strongest/weakest sectors via a
 multi-metric composite (not single-day A/D alone), ranks stocks within each
@@ -397,7 +397,7 @@ def run_screener(num_sectors=2, top_stocks=10, specific_sector=None):
     if 'sp500' in breadth:
         market_breadth_pct = breadth['sp500'].get('pct_above_50dma')
 
-    print(f"[{LOG_PREFIX}] Stock Screener — Technical Analysis")
+    print(f"[{LOG_PREFIX}] Stock Screener - Technical Analysis")
     print(f"[{LOG_PREFIX}] Breadth data from: {breadth['date']}")
     if market_breadth_pct is not None:
         print(f"[{LOG_PREFIX}] Market breadth: {market_breadth_pct}% above 50-DMA")
@@ -543,7 +543,7 @@ def show_opportunities(min_score=60, max_rows=10):
     mb = data.get('market_breadth_pct')
     if mb is not None:
         regime = "constructive" if mb >= 50 else "defensive / selective"
-        print(f"**Regime:** market {mb}% above 50-DMA → {regime}")
+        print(f"**Regime:** market {mb}% above 50-DMA -> {regime}")
         print()
 
     momentum = []
@@ -718,7 +718,7 @@ def export_csv(output_path=None):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Stock Screener — technical analysis of top/bottom sector leaders',
+        description='Stock Screener - technical analysis of top/bottom sector leaders',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:

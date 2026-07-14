@@ -302,8 +302,8 @@ def print_expected_moves(results: List[Dict[str, Any]], markdown: bool = True) -
         avg_iv = sum(m['iv'] for m in moves) / len(moves)
         avg_daily_pct = sum(m['daily_pct'] for m in moves) / len(moves)
         note = (
-            f"Avg IV: {avg_iv:.1f}% | Avg daily expected move: ±{avg_daily_pct:.2f}% | "
-            f"Formula: Price × IV / √252 (1σ ≈ 68% range if IV is well-specified)"
+            f"Avg IV: {avg_iv:.1f}% | Avg daily expected move: +/-{avg_daily_pct:.2f}% | "
+            f"Formula: Price x IV / sqrt(252) (1-sigma ~ 68% range if IV is well-specified)"
         )
         if markdown:
             print()
