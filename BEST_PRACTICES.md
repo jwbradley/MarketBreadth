@@ -80,20 +80,33 @@ Still:
 
 ---
 
-## 8. Orchestration (`getTodaysStockScreenerData.sh`)
+## 8. Orchestration (Linux shell vs Windows batch)
 
-- Keep the bash file as the **cron entry point**; keep Python modules separate (Option C).
-- Soft-fail is intentional: one broken collector should not always kill breadth + screener.
-- Check `logs/todaysMarketBreadth.log` for the human brief and `logs/errors.log` for failures.
-- Non-zero exit count from the shell script means at least one step failed—wire that to monitoring if you care about uptime.
+Keep orchestrators thin; keep Python modules separate (Option C).
 
-Suggested report order (already in the script):
+| | Linux / macOS | Windows |
+|--|---------------|---------|
+| Runner | `getTodaysStockScreenerData.sh` | `getStockScreenerData.bat` |
+| Typical schedule | cron | Task Scheduler |
+| Soft-fail per step | Yes | No (inspect the log after the run) |
+| Virtualenv | Activates `GoldenRatios/.venv` when present | Uses `python` on `PATH` |
+| Log location | `logs/todaysMarketBreadth.log` (+ `logs/errors.log`) | Path in `LOG=` at the top of the `.bat` (**edit this** before first use) |
+| Layout assumption | Runs from KSI parent (`MarketBreadth/` + `GoldenRatios/`) | You start in (or `cd` to) a directory where the listed `.py` files resolve |
+
+Suggested report order (already in both runners):
 
 1. Macro / ratios status  
 2. Breadth briefing  
 3. **Best opportunities** (`--opportunities`)  
 4. Full screener briefing  
-5. OvtLyr gate (`--briefing`)
+5. OvtLyr gate (`--briefing`)  
+6. OvtLyrMimic4 independent re-score (`--union-watchlist`)
+
+Linux: non-zero exit count from the shell script means at least one step failed—wire that to monitoring if you care about uptime. Windows: open the configured log and confirm every “Running:” step completed.
+
+### ASCII-safe CLI output (Windows)
+
+On many Windows installs, Python 3.12 writes stdout as **cp1252**. Characters outside that set (em dash, arrows, √, σ, etc.) can crash a redirected run with `UnicodeEncodeError`. Prefer plain ASCII in **`print()` and argparse descriptions** (`-`, `->`, `sqrt()`, `1-sigma`). Markdown guides may still use Unicode.
 
 ---
 
@@ -123,11 +136,12 @@ Use ATR% and liquidity as **inputs** to your own risk rules. Cap risk per name a
 
 After editing indicators or scores:
 
-1. `python3 -m py_compile ta_indicators.py stock_screener.py OvtLyrMimic.py market_breadth_collector.py`
+1. `python3 -m py_compile ta_indicators.py stock_screener.py OvtLyrMimic.py OvtLyrMimic4.py market_breadth_collector.py`
 2. Run breadth collect once.
 3. Run screener on one sector (`--sector "Utilities" --top-stocks 5`).
 4. Confirm `rules_passed` on the same ticker matches between screener output and `OvtLyrMimic.py`.
-5. Only then run the full daily script.
+5. On Windows: redirect a briefing to a file and confirm no `UnicodeEncodeError`.
+6. Only then run the full daily script (`.sh` or `.bat`).
 
 ---
 

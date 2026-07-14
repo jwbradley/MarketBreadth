@@ -171,7 +171,10 @@ Scores are a ranking aid, not a probability of profit.
 | `market_breadth_collector.py` | Must run first |
 | `ta_indicators.py` | Shared math |
 | `OvtLyrMimic.py` | Nine-rules gate on watchlist |
-| `getTodaysStockScreenerData.sh` | Daily orchestration |
+| `getTodaysStockScreenerData.sh` | Daily orchestration (Linux/macOS) |
+| `getStockScreenerData.bat` | Daily orchestration (Windows; edit `LOG=`) |
+
+CLI strings use ASCII-safe punctuation so Windows cp1252 log redirects do not fail (see [CHANGELOG.md](CHANGELOG.md) §2.1.1).
 
 Also: [BEST_PRACTICES.md](BEST_PRACTICES.md) · [CHANGELOG.md](CHANGELOG.md)
 

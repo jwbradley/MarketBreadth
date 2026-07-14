@@ -8,7 +8,8 @@ Daily toolkit for a **quick, structured view** of US large-cap market participat
 | Shared TA | `ta_indicators.py` | One indicator + nine-rules library (used by screener & OvtLyr) |
 | Stock screen | `stock_screener.py` | RS + liquidity ranking, composite scores, thesis-aware signals |
 | Rules gate | `OvtLyrMimic.py` | Nine-rules pass/fail on the exported watchlist |
-| Daily run | `getTodaysStockScreenerData.sh` | Cron orchestrator (soft-fail, one log) |
+| Daily run (Linux) | `getTodaysStockScreenerData.sh` | Cron orchestrator (soft-fail, one log) |
+| Daily run (Windows) | `getStockScreenerData.bat` | Same pipeline order for Task Scheduler / console |
 
 Optional macro companions (separate package): GoldenRatios GSR / market-ratios collectors.
 
@@ -45,7 +46,8 @@ ta_indicators.py  ◄── shared rank + TA + nine rules
         │         ▼  ovtlyr_watchlist.json
         └── OvtLyrMimic.py     → same rules math, short-list gate
 
-getTodaysStockScreenerData.sh  → cron: collect → screen → report
+getTodaysStockScreenerData.sh  → Linux cron: collect → screen → report
+getStockScreenerData.bat       → Windows: same step order (edit LOG= path)
 ```
 
 ---
@@ -105,13 +107,25 @@ python3 OvtLyrMimic.py --briefing
 
 Or one daily job:
 
+**Linux / macOS (bash):**
+
 ```bash
 ./getTodaysStockScreenerData.sh
 # Log: logs/todaysMarketBreadth.log
 # Errors / step detail: logs/errors.log
 ```
 
-### Cron (example, weekdays)
+**Windows (cmd / Task Scheduler):**
+
+```bat
+REM 1) Edit LOG= inside getStockScreenerData.bat to a path on your machine
+REM 2) Run from a working directory where MarketBreadth (and GoldenRatios, if used) .py files resolve
+getStockScreenerData.bat
+```
+
+The `.bat` mirrors the Linux step order: GoldenRatios collectors (if present) → breadth → screener → briefings → OvtLyr → OvtLyrMimic4. It does **not** soft-fail or activate a venv the way the shell script does—see [BEST_PRACTICES.md](BEST_PRACTICES.md) and [CHANGELOG.md](CHANGELOG.md) §2.1.1.
+
+### Scheduled runs (example, weekdays)
 
 Prefer **post-close** when daily bars have settled (often ~16:30–17:45 CT):
 
@@ -119,7 +133,13 @@ Prefer **post-close** when daily bars have settled (often ~16:30–17:45 CT):
 45 17 * * 1-5 /home/YOU/path/MarketBreadth/getTodaysStockScreenerData.sh >> /home/YOU/path/MarketBreadth/logs/errors.log 2>&1
 ```
 
+On Windows, schedule `getStockScreenerData.bat` with Task Scheduler after the cash close; set **Start in** to your scripts directory and ensure `python` is on the task’s `PATH`.
+
 Morning runs can re-print the prior close; they are not a substitute for a settled session.
+
+### Windows stdout encoding
+
+Python 3.12 on Windows often defaults stdout to **cp1252**. Fancy Unicode in `print()` (em dashes, arrows, Greek letters, checkmarks) can raise `UnicodeEncodeError` when output is redirected to a log. CLI strings in this repo are kept **ASCII-safe** for that reason. Markdown docs may still use Unicode for readability.
 
 ---
 
@@ -170,7 +190,9 @@ MarketBreadth/
 ├── ta_indicators.py
 ├── stock_screener.py
 ├── OvtLyrMimic.py
-├── getTodaysStockScreenerData.sh
+├── OvtLyrMimic4.py
+├── getTodaysStockScreenerData.sh   # Linux/macOS daily runner
+├── getStockScreenerData.bat        # Windows daily runner (edit LOG=)
 ├── README.md
 ├── README-stock_screener.md
 ├── README-OvtLyrMimic.md
@@ -196,7 +218,10 @@ MarketBreadth/
 | Stale constituents | `--update-constituents` |
 | Screener vs OvtLyr disagree | Ensure both import `ta_indicators.py`; re-run watchlist after screen |
 | Slow full run | Normal: full SPX download + multi-sector pre-rank |
-| Step failed in daily script | Check `logs/errors.log`; other steps may still have completed |
+| Step failed in daily script (Linux) | Check `logs/errors.log`; other steps may still have completed |
+| `UnicodeEncodeError` on Windows | Use current CLI code (ASCII-safe prints). Avoid reintroducing em dashes / √ / σ / arrows in `print()`. Or set `PYTHONIOENCODING=utf-8` / use a UTF-8 console |
+| `.bat` log missing / wrong place | Edit `LOG=` in `getStockScreenerData.bat` to a writable path on your machine |
+| `.bat` cannot find `.py` | Set Task Scheduler **Start in** (or `cd`) to the directory that holds the scripts |
 
 ---
 

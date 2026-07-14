@@ -7,6 +7,8 @@ After the nine rules, it can also report **IV-based expected move** (1-sigma) fr
 
 This tool is a **short-list gate**, not a full-universe scanner. Prefer feeding it `ovtlyr_watchlist.json` from the screener.
 
+**Windows note:** formula / header strings in CLI output use ASCII (`sqrt()`, `1-sigma`, `-`) so redirecting to a log under cp1252 does not raise `UnicodeEncodeError`. See [CHANGELOG.md](CHANGELOG.md) §2.1.1.
+
 ---
 
 ## What it does
@@ -162,7 +164,7 @@ If counts differ, re-run the screener watchlist after a code change and confirm 
 | `--briefing` | Markdown table for daily logs |
 | `--verbose` | Per-rule pass/fail details |
 
-The daily bash orchestrator appends `OvtLyrMimic.py --briefing` after screener opportunities.
+The daily orchestrators (`getTodaysStockScreenerData.sh` / `getStockScreenerData.bat`) append `OvtLyrMimic.py --briefing` after screener opportunities, then run `OvtLyrMimic4.py` for an independent re-score.
 
 ---
 
@@ -183,7 +185,9 @@ For day-to-day workflow tips: [BEST_PRACTICES.md](BEST_PRACTICES.md).
 | `market_breadth_collector.py` | Breadth for rules 3–4 |
 | `stock_screener.py` | Scores + watchlist |
 | `ta_indicators.py` | Shared math |
-| `getTodaysStockScreenerData.sh` | Cron pipeline |
+| `OvtLyrMimic4.py` | Independent re-score + core∪watchlist overlap |
+| `getTodaysStockScreenerData.sh` | Cron pipeline (Linux/macOS) |
+| `getStockScreenerData.bat` | Task Scheduler pipeline (Windows) |
 
 ---
 

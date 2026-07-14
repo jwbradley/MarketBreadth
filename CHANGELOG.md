@@ -7,6 +7,35 @@ Versions are informal tags for a personal/public toolkit (not necessarily PyPI r
 
 ---
 
+## [2.1.1] — 2026-07-14
+
+### Windows / encoding
+
+- **ASCII-safe CLI text** in user-facing `print` paths for `stock_screener.py`, `OvtLyrMimic.py`, and `OvtLyrMimic4.py`. Python 3.12 on Windows often uses **cp1252** for stdout; characters above U+00FF (e.g. em dash `—`, arrows `→`, √, σ, ≈, × in some contexts) raise `UnicodeEncodeError` when redirected to a log file or console.
+- Replacements used in output: `->` / `-` for arrows and em dashes; `sqrt()` / `1-sigma` / `x` / `~` / `+/-` instead of √ / σ / × / ≈ / ± where those appeared in formula notes.
+
+### Added
+
+- **`getStockScreenerData.bat`**: Windows daily orchestrator aligned with the Linux shell pipeline (collect → screen → brief, including `--opportunities` and `OvtLyrMimic4.py`). Edit the `LOG=` path before first run; assumes `python` on `PATH` and scripts in the working directory (or your usual layout next to GoldenRatios tools).
+
+### Documentation
+
+- README, BEST_PRACTICES, and CONTRIBUTING note Linux vs Windows runners and the ASCII stdout convention.
+
+### Notes / known differences
+
+| | Linux (`getTodaysStockScreenerData.sh`) | Windows (`getStockScreenerData.bat`) |
+|--|----------------------------------------|--------------------------------------|
+| Soft-fail per step | Yes (`run_step` / `run_report`) | No (batch continues only if each `@python` is allowed to fail silently with `@`; check the log) |
+| Venv | Activates `GoldenRatios/.venv` | Uses system / PATH `python` |
+| Paths | Hardcoded under `~/myPrograms/KSI/` | Hardcoded `LOG=` OneDrive path in the sample bat—**edit for your machine** |
+| Layout | Runs from KSI parent (MarketBreadth + GoldenRatios) | Expects you to run from a directory where the listed `.py` modules resolve |
+| Exit code | Non-zero if any step failed | Batch does not aggregate failure count |
+
+Markdown docs may still use Unicode for readability; **runtime CLI strings** should stay ASCII-safe so Windows logging does not crash.
+
+---
+
 ## [2.1.0] — 2026-07-14
 
 ### Added
