@@ -7,6 +7,15 @@ Versions are informal tags for a personal/public toolkit (not necessarily PyPI r
 
 ---
 
+## [2.1.0] — 2026-07-14
+
+### Added
+
+- **`OvtLyrMimic4.py`**: independent nine-rules re-score with layered universe (core book ∪ personal `tickers.txt` ∪ screener watchlist ∪ CLI). Optional overlap report vs funnel names. Uses shared `ta_indicators` when available.
+- Daily pipeline step in **`getTodaysStockScreenerData.sh`**: runs v4 with `--union-watchlist --briefing`; full report → `logs/MimicOVTLR-DailyOutput.log`.
+
+---
+
 ## [2.0.0] — 2026-07-14
 
 ### Architecture (Option C)

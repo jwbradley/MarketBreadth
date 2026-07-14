@@ -2,6 +2,7 @@
 # Run through all of the daily stock screener programs
 # Program: ~/myPrograms/KSI/MarketBreadth/getTodaysStockScreenerData.sh
 # OUTPUT:  ~/myPrograms/KSI/MarketBreadth/logs/todaysMarketBreadth.log
+#          ~/myPrograms/KSI/MarketBreadth/logs/MimicOVTLR-DailyOutput.log  (OvtLyrMimic4)
 # LOG:     ~/myPrograms/KSI/MarketBreadth/logs/errors.log
 # CRON:    30 15,7,8 * * 1-5 ~/myPrograms/KSI/MarketBreadth/getTodaysStockScreenerData.sh > ~/myPrograms/KSI/MarketBreadth/logs/errors.log 2>&1
 # Prefer post-close (~16:30–17:45 CT) for clean Yahoo prints; morning runs re-report prior close.
@@ -117,6 +118,29 @@ run_report "stock_screener --briefing" \
 
 run_report "OvtLyrMimic (nine rules gate)" \
   $VENV_PYTHON MarketBreadth/OvtLyrMimic.py --briefing
+
+# Independent OvtLyr v4: re-scores core book ∪ screener watchlist (no second cron).
+# EM skipped here — MarketBreadth/OvtLyrMimic.py already reports ATM IV on funnel names.
+# Full v4 report → logs/MimicOVTLR-DailyOutput.log (overwritten each run).
+# A short pointer is left in the main MarketBreadth daily log.
+OVT4_LOG=~/myPrograms/KSI/MarketBreadth/logs/MimicOVTLR-DailyOutput.log
+mkdir -p "$(dirname "$OVT4_LOG")"
+{
+  echo ""
+  echo "<!-- OvtLyrMimic4 (independent re-score + core∪screener overlap) @ $(date '+%Y-%m-%d %H:%M:%S') -->"
+  if $VENV_PYTHON MarketBreadth/OvtLyrMimic4.py \
+      --union-watchlist --briefing --no-expected-move --no-save \
+      > "$OVT4_LOG" 2>> "$ERR_FILE"
+  then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Completed: OvtLyrMimic4 → $OVT4_LOG"
+  else
+    rc=$?
+    FAILURES=$((FAILURES + 1))
+    FAIL_LIST+=("OvtLyrMimic4 (exit $rc)")
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] FAILED: OvtLyrMimic4 (exit $rc) — see $OVT4_LOG / $ERR_FILE"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] FAILED: OvtLyrMimic4 (exit $rc)" >> "$ERR_FILE"
+  fi
+} >> "$LOG_FILE"
 
 # End marker
 {
