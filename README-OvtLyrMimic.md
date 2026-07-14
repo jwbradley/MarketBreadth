@@ -3,6 +3,8 @@
 Python checklist inspired by publicly discussed OVTLYR-style “nine rules” ideas.  
 **v3** evaluates rules through **`ta_indicators.py`**—the same math as `stock_screener.py`.
 
+After the nine rules, it can also report **IV-based expected move** (1-sigma) from the nearest listed options expiration (ATM IV via Yahoo). See [Expected-Move-Guide.md](Expected-Move-Guide.md).
+
 This tool is a **short-list gate**, not a full-universe scanner. Prefer feeding it `ovtlyr_watchlist.json` from the screener.
 
 ---
@@ -85,6 +87,29 @@ python3 OvtLyrMimic.py --watchlist /path/to/my_watchlist.json
 ```bash
 python3 OvtLyrMimic.py --verbose
 ```
+
+### Skip options / expected move (faster)
+
+```bash
+python3 OvtLyrMimic.py --no-expected-move
+```
+
+---
+
+## Expected move (IV)
+
+After nine-rules analysis, ATM IV is pulled from listed expirations (DTE ≥ 1), **nearest first**, skipping chains with unusable IV (Yahoo often returns ~0% on thin/near-dated quotes). Up to five expirations are tried.
+
+| Field | Formula / source |
+|-------|------------------|
+| IV | ATM call (or put) `impliedVolatility` (reject &lt; 5% or &gt; 500%) |
+| Daily 1σ | `Price × IV / √252` |
+| Weekly 1σ | `Price × IV × √5 / √252` |
+| To expiration | `Price × IV × √DTE / √252` |
+
+Price comes from the shared TA snapshot (same close used for rules). Results appear under both default summary and `--briefing`. Use `--no-expected-move` to skip the options chain when offline or rate-limited.
+
+Expected move is a **range scale**, not a direction signal, and is not a guarantee of realized volatility.
 
 ---
 
