@@ -1,4 +1,27 @@
+# Runtime / generated data (do not publish personal market dumps by default)
 logs/
-market_breadth_history.csv
-sp500_constituents.csv
 *.json
+!package.json
+market_breadth_history.csv
+stock_screener_results.csv
+sp500_constituents.csv
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+.env
+.env.*
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+
+# Local notes
+*.local.md
