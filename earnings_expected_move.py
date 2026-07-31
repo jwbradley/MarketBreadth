@@ -32,6 +32,7 @@ import json
 import math
 import os
 import sys
+import textwrap
 import time
 import urllib.error
 import urllib.request
@@ -753,8 +754,64 @@ METHOD_NOTE = (
     "dominated by intrinsic value (thin chain / stale print). Verdict compares implied to the "
     f"stock's own average realized earnings move; DILUTED means the nearest expiration is "
     f">{MAX_CLEAN_DAYS_AFTER_EVENT}d past the report, so the straddle also prices "
-    "non-earnings vol and is not comparable to a single-day move."
+    "non-earnings vol and is not comparable to a single-day move. IV chk is a sanity check "
+    "only - it uses ATM IV from the nearest listed expiration, which on an earnings name is "
+    "often the pre-report contract, so it typically reads BELOW the straddle. Treat a large "
+    "gap as expected, not as an error; the straddle is the number to trade off."
 )
+
+
+# Column headers and alignment for the report table. '<' left-aligns labels,
+# '>' right-aligns numbers so decimal points stack.
+REPORT_COLUMNS: List[Tuple[str, str]] = [
+    ('Ticker', '<'),
+    ('Report', '<'),
+    ('When', '<'),
+    ('Spot', '>'),
+    ('Exp', '>'),
+    ('Straddle', '>'),
+    ('Implied +/-', '>'),
+    ('Expected Range', '>'),
+    ('IV chk', '>'),
+    ('Hist Avg', '>'),
+    ('Verdict', '<'),
+    ('Quality', '<'),
+]
+
+
+def _report_row(r: Dict[str, Any]) -> List[str]:
+    """Format one result as the cell strings for REPORT_COLUMNS."""
+    st = r.get('straddle') or {}
+    iv = r.get('iv_expected_move') or {}
+    hist = r.get('history') or {}
+    spot = r.get('spot')
+    implied = r.get('implied_move_pct')
+
+    exp_s = r.get('expiration') or 'N/A'
+    # Mark expirations well past the event - the straddle carries extra non-event vol.
+    dae = r.get('days_after_event')
+    if dae is not None and dae > MAX_CLEAN_DAYS_AFTER_EVENT:
+        exp_s = f"{exp_s} +{dae}d"
+
+    if st.get('lower_breakeven') is not None:
+        range_s = f"${st['lower_breakeven']:,.2f} - ${st['upper_breakeven']:,.2f}"
+    else:
+        range_s = 'N/A'
+
+    return [
+        r['ticker'],
+        r.get('report_date', ''),
+        TIMING_LABEL.get(r.get('timing'), '?'),
+        f"${spot:,.2f}" if spot else 'N/A',
+        exp_s,
+        f"${st['straddle']:,.2f}" if st.get('straddle') else 'N/A',
+        f"+/-{implied:.2f}%" if implied is not None else 'N/A',
+        range_s,
+        f"{iv['move_pct']:.1f}%" if iv.get('move_pct') is not None else 'N/A',
+        f"{hist['avg_pct']:.1f}%" if hist.get('avg_pct') is not None else 'N/A',
+        r.get('verdict', 'N/A'),
+        r.get('quality', 'N/A'),
+    ]
 
 
 def print_report(results: List[Dict[str, Any]], markdown: bool, sessions: List[date]) -> None:
@@ -766,65 +823,48 @@ def print_report(results: List[Dict[str, Any]], markdown: bool, sessions: List[d
     if markdown:
         print(f"\n## {title}")
         print()
-        if not results:
-            print("*No qualifying earnings reporters found in this window.*")
-            return
-        print(
-            "| Ticker | Report | When | Spot | Exp | Straddle | Implied +/- | "
-            "Expected Range | IV chk | Hist Avg | Verdict | Quality |"
-        )
-        print("|---|---|---|---|---|---|---|---|---|---|---|---|")
     else:
         print(f"\n{title}")
-        print("=" * 132)
-        if not results:
-            print("No qualifying earnings reporters found in this window.")
-            return
-        print(
-            f"{'Ticker':<7}{'Report':<12}{'When':<6}{'Spot':>9}{'Exp':>12}"
-            f"{'Strdl':>8}{'Implied':>11}{'Range':>20}{'IVchk':>8}"
-            f"{'HistAvg':>9}{'Verdict':>9}{'Quality':>9}"
-        )
-        print("-" * 132)
 
-    for r in results:
-        ticker = r['ticker']
-        when = TIMING_LABEL.get(r.get('timing'), '?')
-        spot = r.get('spot')
-        st = r.get('straddle') or {}
-        iv = r.get('iv_expected_move') or {}
-        hist = r.get('history') or {}
-        implied = r.get('implied_move_pct')
+    if not results:
+        msg = "No qualifying earnings reporters found in this window."
+        print(f"*{msg}*" if markdown else f"{'=' * 40}\n{msg}")
+        return
 
-        spot_s = f"${spot:,.2f}" if spot else 'N/A'
-        exp_s = r.get('expiration') or 'N/A'
-        # Mark expirations well past the event - the straddle carries extra non-event vol.
-        dae = r.get('days_after_event')
-        if dae is not None and dae > MAX_CLEAN_DAYS_AFTER_EVENT:
-            exp_s = f"{exp_s}+{dae}d"
-        strd_s = f"${st['straddle']:,.2f}" if st.get('straddle') else 'N/A'
-        impl_s = f"+/-{implied:.2f}%" if implied is not None else 'N/A'
-        if st.get('lower_breakeven') is not None:
-            range_s = f"${st['lower_breakeven']:,.2f}-${st['upper_breakeven']:,.2f}"
-        else:
-            range_s = 'N/A'
-        iv_s = f"{iv['move_pct']:.1f}%" if iv.get('move_pct') is not None else 'N/A'
-        hist_s = f"{hist['avg_pct']:.1f}%" if hist.get('avg_pct') is not None else 'N/A'
-        verd_s = r.get('verdict', 'N/A')
-        qual_s = r.get('quality', 'N/A')
+    headers = [h for h, _ in REPORT_COLUMNS]
+    aligns = [a for _, a in REPORT_COLUMNS]
+    rows = [_report_row(r) for r in results]
 
-        if markdown:
-            print(
-                f"| {ticker} | {r.get('report_date','')} | {when} | {spot_s} | {exp_s} | "
-                f"{strd_s} | **{impl_s}** | {range_s} | {iv_s} | {hist_s} | "
-                f"{verd_s} | {qual_s} |"
-            )
-        else:
-            print(
-                f"{ticker:<7}{r.get('report_date',''):<12}{when:<6}{spot_s:>9}{exp_s:>12}"
-                f"{strd_s:>8}{impl_s:>11}{range_s:>20}{iv_s:>8}"
-                f"{hist_s:>9}{verd_s:>9}{qual_s:>9}"
-            )
+    # Size each column to its widest cell so the pipes line up when the log is
+    # read as plain text, not only when a markdown renderer draws the table.
+    widths = [
+        max(len(h), *(len(row[i]) for row in rows))
+        for i, h in enumerate(headers)
+    ]
+
+    def render(cells: List[str]) -> str:
+        body = ' | '.join(f"{c:{a}{w}}" for c, a, w in zip(cells, aligns, widths))
+        # Markdown needs the closing pipe; plain text does not need the padding
+        # that a trailing left-aligned column would leave behind.
+        return f"| {body} |" if markdown else body.rstrip()
+
+    table_width = sum(widths) + 3 * (len(widths) - 1) + (4 if markdown else 0)
+
+    if markdown:
+        print(render(headers))
+        # Dash runs sized to the columns, with alignment colons, so the divider
+        # lines up with the cells above and below it.
+        print('|' + '|'.join(
+            (':' + '-' * (w + 1) if a == '<' else '-' * (w + 1) + ':')
+            for a, w in zip(aligns, widths)
+        ) + '|')
+    else:
+        print('=' * table_width)
+        print(render(headers))
+        print('-' * table_width)
+
+    for cells in rows:
+        print(render(cells))
 
     # Flag rows we could not price so they are not mistaken for absent events.
     unpriced = [r for r in results if r.get('implied_move_pct') is None]
@@ -839,22 +879,27 @@ def print_report(results: List[Dict[str, Any]], markdown: bool, sessions: List[d
         cheap = [r['ticker'] for r in priced if r['verdict'] == 'CHEAP']
         diluted = [r['ticker'] for r in priced if r['verdict'] == 'DILUTED']
         if markdown:
+            # Blank line so the notes do not abut the table and get parsed as
+            # part of it; bullets instead of a wall of italic lines.
             print()
-            print(f"*{summary}*")
+            print(f"**{summary}**")
+            print()
             if rich:
-                print(f"*RICH (implied > {RICH_RATIO}x avg realized): {', '.join(rich)}*")
+                print(f"- **RICH** (implied > {RICH_RATIO}x avg realized): {', '.join(rich)}")
             if cheap:
-                print(f"*CHEAP (implied < {CHEAP_RATIO}x avg realized): {', '.join(cheap)}*")
+                print(f"- **CHEAP** (implied < {CHEAP_RATIO}x avg realized): {', '.join(cheap)}")
             if diluted:
                 print(
-                    f"*DILUTED (no expiration within {MAX_CLEAN_DAYS_AFTER_EVENT}d of the "
-                    f"report; implied includes non-earnings vol): {', '.join(diluted)}*"
+                    f"- **DILUTED** (no expiration within {MAX_CLEAN_DAYS_AFTER_EVENT}d of "
+                    f"the report; implied includes non-earnings vol): {', '.join(diluted)}"
                 )
             if unpriced:
-                print(f"*Not priceable: {', '.join(r['ticker'] for r in unpriced)}*")
-            print(f"*{METHOD_NOTE}*")
+                print(f"- **Not priceable**: {', '.join(r['ticker'] for r in unpriced)}")
+            print()
+            for line in textwrap.wrap(METHOD_NOTE, width=100):
+                print(f"> {line}")
         else:
-            print("-" * 132)
+            print('-' * table_width)
             print(f"  {summary}")
             if rich:
                 print(f"  RICH:  {', '.join(rich)}")

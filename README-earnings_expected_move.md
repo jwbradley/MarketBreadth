@@ -101,15 +101,22 @@ python3 earnings_expected_move.py --json
 
 ## Reading the Output
 
+Plain text (default):
+
 ```
-Ticker Report      When       Spot         Exp   Strdl    Implied               Range   IVchk  HistAvg  Verdict  Quality
-PLTR   2026-08-03  AMC     $123.06  2026-08-07  $14.00  +/-11.38%     $109.00-$137.00   13.7%     4.7%     RICH     GOOD
+Ticker | Report     | When |    Spot |             Exp | Straddle | Implied +/- |    Expected Range | IV chk | Hist Avg | Verdict | Quality
+PLTR   | 2026-08-03 | AMC  | $123.06 |      2026-08-07 |   $14.00 |   +/-11.38% | $109.00 - $137.00 |  13.7% |     4.7% | RICH    | GOOD
+ARE    | 2026-08-03 | AMC  |  $51.45 | 2026-08-21 +17d |    $4.75 |    +/-9.23% |   $47.75 - $57.25 |  12.9% |     1.3% | DILUTED | WIDE
 ```
+
+Column widths are computed from the data and every cell is padded, so `--briefing`
+output lines up as a table when the log is read as plain text — not only when a
+markdown renderer draws it. This matches `nine_rules_gate.py --briefing`.
 
 - **When** — `BMO` pre-market · `AMC` after-hours · `?` unknown
 - **Implied** — straddle ÷ spot: the ~1-sigma (~68%) move priced in
 - **Range** — straddle breakevens; profit for a buyer requires exceeding them
-- **IVchk** — independent IV-formula estimate; a large divergence warrants a look
+- **IVchk** — sanity check only. It uses ATM IV from the *nearest* listed expiration, which on an earnings name is often the pre-report contract, so it usually reads **below** the straddle (AMD: 5.8% vs 9.66% implied). A large gap is expected, not an error — the straddle is the number to trade off. Use IVchk mainly to catch rows where the straddle looks wildly out of family.
 - **HistAvg** — average absolute move over the last ~8 reports
 
 ### Verdict
@@ -130,6 +137,7 @@ PLTR   2026-08-03  AMC     $123.06  2026-08-07  $14.00  +/-11.38%     $109.00-$1
 | `WIDE` | Bid/ask spread > 25% of mid — treat the number loosely |
 | `STALE` | Fell back to `lastPrice`; typical outside market hours |
 | `IV_ONLY` | No usable quotes; the IV estimate is the only read |
+| `SUSPECT` | Straddle is below the ATM strike's intrinsic value, or intrinsic dominates it — a thin chain or stale print, not a real quote. Verdict forced to `N/A`. |
 | `NO_DATA` / `ERROR` | No price/chain, or a fetch failure (see `note` in the JSON) |
 
 **Rows are never silently dropped** — an unusable quote is labeled, not hidden.
@@ -150,6 +158,11 @@ Wired into `getStockScreenerData.bat`, appending a markdown section to
 ```bat
 @python earnings_expected_move.py --briefing >> "%LOG%"
 ```
+
+> **Note:** `getStockScreenerData.bat` previously had no `cd`, so every `python` call
+> resolved against the *caller's* working directory — running it from anywhere other than
+> `C:\Users\DT17787` silently failed all 14 steps while still logging "Complete". It now
+> starts with `cd /d "%~dp0"` (matching `morning-crons.bat`) and works from any directory.
 
 Also writes `earnings_expected_move_latest.json` (`stocks[]` with full straddle legs, per-report realized moves, and quality/verdict fields) for downstream use.
 

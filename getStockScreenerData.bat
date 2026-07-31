@@ -1,6 +1,10 @@
 @echo off
 setlocal
 
+:: Run from the script's own directory so the python calls resolve regardless of the
+:: caller's working directory (Task Scheduler, another shell, a different drive).
+cd /d "%~dp0"
+
 set "LOG=C:\Users\DT17787\OneDrive - SS&C Technologies, Inc\Documents\MarketNews\todayStockScreener.log"
 
 echo [%date% %time%] === Stock Screener Data Collection Started === > "%LOG%"
