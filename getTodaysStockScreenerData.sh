@@ -142,6 +142,11 @@ mkdir -p "$(dirname "$NR_INDEP_LOG")"
   fi
 } >> "$LOG_FILE"
 
+# Earnings calendar expected move (straddle/IV around report dates).
+# Matches getStockScreenerData.bat: earnings_expected_move.py --briefing
+run_report "earnings_expected_move --briefing" \
+  $VENV_PYTHON MarketBreadth/earnings_expected_move.py --briefing
+
 # End marker
 {
   echo ""
