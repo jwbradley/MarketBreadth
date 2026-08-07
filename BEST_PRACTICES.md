@@ -7,7 +7,7 @@ Practical guidance for running the Market Breadth suite so results are more reli
 ## 1. Treat the pipeline as a funnel
 
 ```
-Regime / macro context  →  Sector breadth  →  Stock candidates  →  Nine-rules gate
+Regime / macro  →  Sector breadth  →  Stock candidates  →  Nine-rules gate  →  Earnings EM
 ```
 
 | Layer | Tool | Use it for |
@@ -16,8 +16,11 @@ Regime / macro context  →  Sector breadth  →  Stock candidates  →  Nine-ru
 | Sector map | `market_breadth_collector.py` | Where participation is strong or weak |
 | Candidates | `stock_screener.py` | Who looks interesting *inside* those sectors |
 | Checklist | `nine_rules_gate.py` | Binary pass/fail on a short watchlist |
+| Event risk | `earnings_expected_move.py` | How large a move options price for upcoming reports |
 
-Do not skip straight to “Strong Buy” labels without reading sector and market breadth first.
+Do not skip straight to action labels (`BUY NOW`, `STRONG BUY`) without reading sector and market breadth first.
+
+`ta_indicators.py` is a **shared library** imported by the screener and nine-rules tools. Do **not** add it as a step in the daily shell/batch runners.
 
 ---
 
@@ -28,35 +31,52 @@ Do not skip straight to “Strong Buy” labels without reading sector and marke
 - Prefer a daily job around **16:30–17:45 CT** (or local equivalent after your market’s close).
 - Morning runs (e.g. 07:30 / 08:30) are useful as a **re-report of the prior close**, not as “today’s open edge.”
 
+### Hourly / intraday runs
+
+If you schedule mid-session (e.g. Windows Task Scheduler every hour):
+
+- The screener **keeps the live bar** so prices stay current.
+- Volume is **pro-rated** by session fraction so Rule 6 is not failed for clock reasons alone.
+- Reports should say “intraday snapshot,” not “as of close.”
+- History is collapsed to **one record per calendar day** so `days_on_list` / `NEW` stay meaningful.
+
 If the latest bar date is not the session you expect, treat labels as stale until the next successful collect.
 
 ---
 
 ## 3. Use the shared indicator path
 
-- `stock_screener.py` and `nine_rules_gate.py` both use **`ta_indicators.py`**.
+- `stock_screener.py`, `nine_rules_gate.py`, and (when available) `nine_rules_independent.py` use **`ta_indicators.py`**.
 - Do not fork a second RSI/MACD implementation in ad-hoc scripts; scores and rules will diverge.
 - If you change indicator math, change it once in `ta_indicators.py` and re-run both tools.
+- Changes to that module should be **additive** (new keys / kwargs with defaults). See [README-ta_indicators.md](README-ta_indicators.md).
 
 ---
 
-## 4. Interpret signals by thesis
+## 4. Interpret setup and entry separately
 
-| Signal style | Typical context | How to use |
+Read **two** numbers, not one blended score:
+
+| Axes / label | Typical context | How to use |
 |--------------|-----------------|------------|
-| **Momentum Buy** | Strong sector, trend aligned, RS positive | Primary long watchlist focus |
-| **Buy / Neutral / Weak** | Mixed technicals | Size down or wait |
-| **Reversal Watch** | Weak sector, washout / divergence cues | Secondary; needs confirmation |
-| **RS in Weak Sector** | Stock outperforming while sector is weak | Leadership candidate or short-avoid list—not the same as momentum |
+| **High setup + high entry** (`BUY NOW`, `BUY / SCALE IN`) | Strong sector, aligned trend, price not a chase | Primary long focus *if* breadth and liquidity agree |
+| **High setup + low entry** (`STRONG - WAIT FOR PULLBACK`) | Great vehicle, extended / overbought | Own the thesis; wait for pullback; note stop distance |
+| **Moderate setup** (`WATCH`, `SPECULATIVE ENTRY`) | Mixed structure | Secondary; smaller size or more confirmation |
+| **`REVERSAL WATCH` / `RS LEADER *`** | Weak sector, mean-reversion or relative leadership | Different thesis from top-sector momentum |
+| **`AVOID` / `AVOID / SHORT BIAS`** | Structure weak | Skip for long bias |
 
-Primary daily focus should be **momentum names in strong sectors**. Weak-sector setups are optional and different trades.
+Legacy field `score` is a 70/30 blend of setup/entry for older consumers. Prefer `setup_score` and `entry_score`.
+
+Primary daily focus should be **high-setup names in strong sectors** with acceptable entry (or an explicit plan to wait). Weak-sector setups are optional and different trades.
+
+Raise the bar with `stock_screener.py --min-setup N` (default 60) on `--opportunities` and `--watchlist`.
 
 ---
 
 ## 5. Liquidity and universe
 
 - Default liquidity floor: **$20M** average dollar volume (20-day). Override with `SCREENER_MIN_DOLLAR_VOL` if needed.
-- Universe is **S&P 500 constituents** (auto-refreshed monthly). Mid/small-cap opportunities are out of scope unless you extend the list.
+- Universe is **S&P 500 constituents** (auto-refreshed periodically). Mid/small-cap opportunities are out of scope unless you extend the list.
 - Alphabet order is **not** used for “top stocks”; ranking is RS + liquidity. Trust the pre-rank step.
 
 ---
@@ -74,13 +94,25 @@ Still:
 
 ## 7. Keep the watchlist short
 
-- Export with `stock_screener.py --watchlist` (score floor, top per sector).
+- Export with `stock_screener.py --watchlist` (setup floor via `--min-setup`, top per sector).
 - Run `nine_rules_gate.py` on that list, not the entire S&P 500.
-- If more than ~15–20 names pass, raise the score threshold or restrict to top-sector only.
+- If more than ~15–20 names pass, raise `--min-setup` or restrict focus to top-sector only.
+- Respect `ER+Nd` / earnings warnings on the watchlist; size down or wait through the report.
 
 ---
 
-## 8. Orchestration (Linux shell vs Windows batch)
+## 8. Earnings event risk
+
+- Screener tags names reporting within 7 calendar days (`ER+Nd`).
+- `earnings_expected_move.py --briefing` prices ATM straddles on the **first expiry after the report** (not the nearest pre-earnings expiry).
+- **RICH / CHEAP** is context vs history, not a trade signal. Install **`lxml`** in the active venv or Hist Avg / Verdict show `N/A`.
+- Prefer live options quotes when possible; pre-open runs often show STALE / WIDE quality.
+
+Details: [README-earnings_expected_move.md](README-earnings_expected_move.md).
+
+---
+
+## 9. Orchestration (Linux shell vs Windows batch)
 
 Keep orchestrators thin; keep Python modules separate (Option C).
 
@@ -91,7 +123,7 @@ Keep orchestrators thin; keep Python modules separate (Option C).
 | Soft-fail per step | Yes | No (inspect the log after the run) |
 | Virtualenv | Activates `GoldenRatios/.venv` when present | Uses `python` on `PATH` |
 | Log location | `logs/todaysMarketBreadth.log` (+ `logs/errors.log`) | Path in `LOG=` at the top of the `.bat` (**edit this** before first use) |
-| Layout assumption | Runs from KSI parent (`MarketBreadth/` + `GoldenRatios/`) | You start in (or `cd` to) a directory where the listed `.py` files resolve |
+| Layout assumption | Runs from KSI parent (`MarketBreadth/` + `GoldenRatios/`) | Bat `cd`s to its own directory |
 
 Suggested report order (already in both runners):
 
@@ -99,8 +131,9 @@ Suggested report order (already in both runners):
 2. Breadth briefing  
 3. **Best opportunities** (`--opportunities`)  
 4. Full screener briefing  
-5. nine-rules gate (`--briefing`)  
-6. Independent nine-rules scan (`nine_rules_independent.py --union-watchlist`)
+5. Nine-rules gate (`--briefing`)  
+6. Independent nine-rules scan (`nine_rules_independent.py --union-watchlist`)  
+7. **Earnings expected move** (`earnings_expected_move.py --briefing`)  
 
 Linux: non-zero exit count from the shell script means at least one step failed—wire that to monitoring if you care about uptime. Windows: open the configured log and confirm every “Running:” step completed.
 
@@ -110,7 +143,7 @@ On many Windows installs, Python 3.12 writes stdout as **cp1252**. Characters ou
 
 ---
 
-## 9. Risk management outside the scripts
+## 10. Risk management outside the scripts
 
 These tools **do not**:
 
@@ -119,11 +152,11 @@ These tools **do not**:
 - Enforce stops  
 - Account for taxes, dividends, or borrow fees  
 
-Use ATR% and liquidity as **inputs** to your own risk rules. Cap risk per name and per day independently of any score.
+Use `risk_pct`, ATR metrics, and liquidity as **inputs** to your own risk rules. Cap risk per name and per day independently of any score. Treat `R:R` of `open` as “no measured overhead supply,” not a free lunch.
 
 ---
 
-## 10. Data hygiene
+## 11. Data hygiene
 
 - Refresh constituents if the list is stale (`market_breadth_collector.py --update-constituents`).
 - Do not commit large history JSON/CSV or personal logs to a public repo (see `.gitignore`).
@@ -132,23 +165,25 @@ Use ATR% and liquidity as **inputs** to your own risk rules. Cap risk per name a
 
 ---
 
-## 11. Validation before trusting a change
+## 12. Validation before trusting a change
 
 After editing indicators or scores:
 
-1. `python3 -m py_compile ta_indicators.py stock_screener.py nine_rules_gate.py nine_rules_independent.py market_breadth_collector.py`
+1. `python3 -m py_compile ta_indicators.py stock_screener.py nine_rules_gate.py nine_rules_independent.py market_breadth_collector.py earnings_expected_move.py`
 2. Run breadth collect once.
 3. Run screener on one sector (`--sector "Utilities" --top-stocks 5`).
 4. Confirm `rules_passed` on the same ticker matches between screener output and `nine_rules_gate.py`.
-5. On Windows: redirect a briefing to a file and confirm no `UnicodeEncodeError`.
-6. Only then run the full daily script (`.sh` or `.bat`).
+5. Spot-check a few labels against the setup/entry table (e.g. setup 90 / entry 50 → `BUY / SCALE IN`, not `BUY NOW`).
+6. On Windows: redirect a briefing to a file and confirm no `UnicodeEncodeError`.
+7. Only then run the full daily script (`.sh` or `.bat`).
 
 ---
 
-## 12. What not to do
+## 13. What not to do
 
-- Do not treat composite score 100 or “STRONG BUY” as certainty.
+- Do not treat setup 100, entry 100, or “STRONG BUY” as certainty.
 - Do not average contradictory systems (mean-reversion + trend) into one action without labeling the thesis.
+- Do not force entries into `CHASE` / low-entry high-setup names just because setup looks great.
 - Do not hardcode secrets or paid API keys into the repo.
 - Do not present outputs as personalized financial advice when sharing publicly.
 
@@ -160,7 +195,8 @@ After editing indicators or scores:
 |-----|---------|
 | [README.md](README.md) | Project overview and pipeline |
 | [README-stock_screener.md](README-stock_screener.md) | Screener details |
-| [README-nine_rules.md](README-nine_rules.md) | Nine rules tool |
+| [README-nine_rules.md](README-nine_rules.md) | Nine rules tools |
 | [README-ta_indicators.md](README-ta_indicators.md) | Shared indicator library |
+| [README-earnings_expected_move.md](README-earnings_expected_move.md) | Earnings straddle report |
 | [DISCLAIMER.md](DISCLAIMER.md) | Legal / risk disclaimer |
 | [CHANGELOG.md](CHANGELOG.md) | Version history |

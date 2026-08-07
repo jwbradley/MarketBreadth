@@ -8,14 +8,16 @@ All of the math lives in `ta_indicators.py`, a shared library also used by `nine
 
 ## What It Does
 
-1. Reads `market_breadth_latest.json` to identify top 2 + bottom 2 sectors by A/D ratio
-2. Fetches 1 year of price/volume data for top stocks in each sector
-3. Calculates 13+ technical indicators per stock
-4. Compares each stock's performance against SPY (relative strength)
-5. Detects bullish/bearish divergences
-6. Factors sector breadth into individual stock scores
-7. Applies a 9-rule pass/fail system (OVTLYR-inspired)
-8. Scores two independent axes - Setup Quality and Entry Timing - plus stop, risk % and R:R
+1. Reads `market_breadth_latest.json` and ranks sectors by a **multi-metric composite** (not single-day A/D alone)
+2. Pre-ranks names inside each sector by **relative strength + liquidity** (not CSV / alphabetical order)
+3. Fetches ~1 year of price/volume data for the top candidates in each sector
+4. Calculates indicators via shared `ta_indicators.calculate_from_ohlcv`
+5. Compares each stock to SPY (20d and 60d relative strength)
+6. Detects bullish/bearish divergences
+7. Factors sector breadth into **setup quality**
+8. Applies a **9-rule** pass/fail checklist (shared with the nine-rules gate)
+9. Scores two independent axes — **Setup Quality** and **Entry Timing** — plus stop, risk %, and R:R
+10. Tags upcoming earnings (`ER+Nd`) and maintains day-level history for tenure / `NEW`
 
 ---
 
@@ -25,7 +27,8 @@ All of the math lives in `ta_indicators.py`, a shared library also used by `nine
 pip install yfinance pandas numpy
 ```
 
-Also requires `market_breadth_latest.json` — run `market_breadth_collector.py` first.
+Also requires `market_breadth_latest.json` — run `market_breadth_collector.py` first.  
+Earnings tags reuse `earnings_expected_move` when that module is importable; a calendar failure degrades to no tags.
 
 ---
 
@@ -44,25 +47,40 @@ python3 stock_screener.py --top-stocks 20
 # Analyze a specific sector
 python3 stock_screener.py --sector "Energy"
 
+# Action-bucketed opportunities (uses --min-setup floor)
+python3 stock_screener.py --opportunities
+python3 stock_screener.py --opportunities --min-setup 70
+
 # Markdown briefing for reports
 python3 stock_screener.py --briefing
 
 # Export to CSV for spreadsheet analysis
 python3 stock_screener.py --csv
+
+# Watchlist for nine_rules_gate.py (setup floor default 60)
+python3 stock_screener.py --watchlist
+python3 stock_screener.py --watchlist --min-setup 65
 ```
 
 ### Workflow (run in sequence)
 
 ```bash
-# 1. Collect breadth (identifies top/bottom sectors)
+# 1. Collect breadth (identifies top/bottom sectors by composite)
 python3 market_breadth_collector.py
 
 # 2. Screen individual stocks in those sectors
-python3 stock_screener.py
+python3 stock_screener.py --sectors 3
 
 # 3. View results
+python3 stock_screener.py --opportunities
 python3 stock_screener.py --briefing
+
+# 4. Watchlist + nine-rules gate
+python3 stock_screener.py --watchlist
+python3 nine_rules_gate.py --briefing
 ```
+
+Or use the daily orchestrators: `getTodaysStockScreenerData.sh` (Linux) / `getStockScreenerData.bat` (Windows).
 
 ---
 
@@ -73,7 +91,7 @@ python3 stock_screener.py --briefing
 | Indicator | Description |
 |-----------|-------------|
 | SMA 20/50/200 | Simple Moving Averages for long-term trend |
-| EMA 10/20/50 | Exponential Moving Averages for faster trend confirmation |
+| EMA 10/20/50/100 | Exponential Moving Averages for trend confirmation |
 | Trend Score (0-3) | Count of SMAs the price is above |
 | EMA Alignment | Whether price > 10 EMA > 20 EMA > 50 EMA (bullish stacking) |
 | MA Alignment | Whether 20 SMA > 50 SMA > 200 SMA |
@@ -94,41 +112,45 @@ python3 stock_screener.py --briefing
 |-----------|-------------|
 | Bollinger %B | Position within 20-day Bollinger Bands (0=lower, 1=upper) |
 | ATR (14-day) | Average True Range as % of price — risk per trade |
-| Volume Ratio | Today's volume vs 20-day average — institutional conviction |
-| Avg Daily Volume | Liquidity screen (can you get in/out?) |
+| ATR vs own median | Current ATR% ÷ 100-day median ATR% (relative volatility) |
+| Volume Ratio | Today's volume vs 20-day average (pro-rated if the bar is still forming) |
+| Dollar volume (20d) | Liquidity screen (can you get in/out?) |
 
 ### Relative & Contextual
 
 | Indicator | Description |
 |-----------|-------------|
-| Relative Strength vs SPY | 20-day return minus SPY's 20-day return — alpha generation |
+| Relative Strength vs SPY | 20-day and 60-day return minus SPY |
+| Extension from 50-DMA | Percent, ATR units, and own 1y percentile |
 | Bearish Divergence | Price rising + RSI falling + RSI > 65 — warning signal |
 | Bullish Divergence | Price falling + RSI rising + RSI < 35 — opportunity signal |
-| Sector A/D Ratio | Breadth data factored into score — sector tailwind/headwind |
+| Sector A/D Ratio | Breadth data factored into setup quality |
 
 ---
 
 ## 9-Rule Pass/Fail System
 
-Inspired by the OVTLYR Nine Rules framework. Each stock is evaluated against 9 criteria:
+Educational multi-factor checklist (independent of any commercial platform). Evaluated in shared `ta_indicators.evaluate_nine_rules` so the screener and `nine_rules_gate.py` stay aligned.
 
 | Rule | Criteria | What It Checks |
 |------|----------|----------------|
 | 1 | EMA Trend Confirmation | Price > 10 EMA > 20 EMA > 50 EMA |
 | 2 | Signal Alignment | Price above 20 EMA + positive 5-day momentum |
-| 3 | Market Breadth | (Contextual — from breadth data) |
-| 4 | Sector Strength | (Contextual — sector A/D ratio) |
-| 5 | RSI Optimal Zone | RSI between 40-70 (not overbought/oversold) |
-| 6 | Volume Sufficient | Volume ratio > 0.8x average |
-| 7 | Manageable Volatility | ATR < 8% of price |
+| 3 | Market Breadth | S&P % above 50-DMA ≥ 50 (fails closed if unknown) |
+| 4 | Sector Strength | Sector % above 50-DMA ≥ 50 (fails closed if unknown) |
+| 5 | RSI Optimal Zone | RSI between 40–70 |
+| 6 | Liquidity / Volume | 20d dollar volume ≥ floor (default $20M) **and** volume ratio > 0.6 |
+| 7 | Position Sizing | ATR% < 8 **and** ATR vs own 100d median < 1.5 |
 | 8 | Multi-Timeframe | Price above both 20 EMA and 100 EMA |
 | 9 | No Contradictions | No bearish divergence present |
 
 **Interpretation:**
-- 8-9 rules passed → Strong alignment across all dimensions
-- 6-7 rules passed → Mostly positive, minor concerns
-- 4-5 rules passed → Mixed signals, proceed with caution
-- 0-3 rules passed → Multiple red flags
+- 8–9 rules passed → Strong alignment across dimensions  
+- 6–7 rules passed → Mostly positive, minor concerns  
+- 4–5 rules passed → Mixed signals  
+- 0–3 rules passed → Multiple red flags  
+
+Full rule detail and history of why Rules 6/7 changed: [README-ta_indicators.md](README-ta_indicators.md).
 
 ---
 
@@ -137,7 +159,7 @@ Inspired by the OVTLYR Nine Rules framework. Each stock is evaluated against 9 c
 A single composite score conflated two independent questions and hid the case that
 matters most: **a great stock at a bad price.** Both now score separately.
 
-### Setup Quality (0-100) - is this a sound vehicle?
+### Setup Quality (0-100) — is this a sound vehicle?
 
 Structural only. Deliberately excludes extension and overbought measures.
 
@@ -154,7 +176,7 @@ Structural only. Deliberately excludes extension and overbought measures.
 | Divergence | +/- 8 | Warnings penalized, reversals rewarded |
 | Sector breadth | -5 / +6 | Sector tailwind or headwind |
 
-### Entry Timing (0-100) - is *now* a good price?
+### Entry Timing (0-100) — is *now* a good price?
 
 | Factor | Range | Logic |
 |--------|-------|-------|
@@ -165,10 +187,8 @@ Structural only. Deliberately excludes extension and overbought measures.
 | Volume confirmation | +5 / -3 | Participation on the entry bar |
 
 Both axes are normalized against **the range each name could actually have
-reached**, not a fixed divisor. An earlier fixed divisor clipped 18 of 60 names to
-exactly 100 and flattened the ranking precisely at the top. Names missing an
-optional input (no RS history, no sector breadth) are not judged against points
-they never had a chance to earn.
+reached**, not a fixed divisor. Names missing an optional input (no RS history,
+no sector breadth) are not judged against points they never had a chance to earn.
 
 ### Action Labels
 
@@ -187,7 +207,8 @@ Weak-sector names use a mean-reversion variant: `RS LEADER - ENTRY OK`,
 `RS LEADER - EXTENDED`, `REVERSAL WATCH`, `AVOID / SHORT BIAS`.
 
 `score` is retained as a legacy 70/30 blend of the two axes for backward
-compatibility. Prefer `setup_score` and `entry_score`.
+compatibility. Prefer `setup_score` and `entry_score`. Ranking uses setup first,
+then entry.
 
 Use `--min-setup N` (default 60) to set the Setup Quality floor for
 `--opportunities` and `--watchlist`.
@@ -200,30 +221,31 @@ Use `--min-setup N` (default 60) to set the Setup Quality floor for
 |-------|---------|
 | `stop_price` | 2-ATR stop, or just under a nearby 20-day swing low |
 | `stop_basis` | `2atr` or `swing_low_20` |
-| `risk_pct` | Distance to stop as % of price - position sizing input |
+| `risk_pct` | Distance to stop as % of price — position sizing input |
 | `target_price` | 52-week high when it is far enough above to be real resistance |
+| `target_basis` | `52w_high` or `open_no_overhead` |
 | `rr_ratio` | Reward:risk. **`None`, shown as `open`** when price is at new highs |
 
-`R:R` of `open` means no measurable overhead supply - a bullish condition, not
-missing data. An earlier version substituted a 2R projection here, which made 25
-of 60 names print exactly `2.00`: an assumption (2R/1R) wearing the costume of a
-measurement.
+`R:R` of `open` means no measurable overhead supply — a bullish condition, not
+missing data. When `target_basis` is `open_no_overhead`, `target_price` may still
+hold a 2R projection for display; **do not treat that as measured R:R** — trust
+`rr_ratio` / the `open` column.
 
 ATR is floored at 0.5% of price for extension and 0.75% for stops. A stock pinned
-in a 0.4% daily range (typically a pending acquisition) otherwise produced a
-nonsensical 25 ATR extension and a 0.8% stop. Such names are flagged `NO-VOL`.
+in a collapsed range otherwise produced nonsensical extension and stops. Such
+names are flagged `NO-VOL`.
 
 ---
 
 ## Intraday Runs and the Partial Bar
 
-The Windows Task Scheduler job **"Today's Market Screener"** runs hourly, 07:30 to
-14:30 CT (08:30-15:30 ET) - **every run is intraday.**
+The Windows Task Scheduler job runs hourly, 07:30 to 14:30 CT (08:30–15:30 ET) —
+**every of those runs is mid-session.**
 
 yfinance returns a live, still-accumulating bar for the current session, whose
 `Volume` is only the shares traded so far. Comparing that raw figure to a full-day
-20-day average understated participation by roughly 6x at 10:30 ET and failed the
-volume rule on 53 of 60 names for purely clock-related reasons.
+20-day average understated participation and failed the volume rule for clock
+reasons.
 
 The fix keeps the live bar so **prices stay current**, and pro-rates the volume
 comparison by the fraction of the session elapsed (`session_fraction_elapsed()`, a
@@ -231,13 +253,14 @@ mildly U-shaped curve reflecting front- and back-loaded volume). The partial bar
 also excluded from the 20-day average so a half day of volume does not drag down
 the baseline it is measured against.
 
-Dropping the bar instead would make all eight daily runs report the prior close -
-eight identical outputs. `use_complete_bars=True` still does that, which is the
-right choice for backtests or exact end-of-day reconciliation.
+Dropping the bar instead would make all hourly runs report the prior close —
+identical outputs. `use_complete_bars=True` still does that, which is the right
+choice for backtests or exact end-of-day reconciliation. Scheduled / default path
+uses `False`.
 
-Reports label the basis honestly: an intraday run prints
-`**Data as of:** <date> intraday snapshot, N% of session elapsed (volume pro-rated)`
-rather than claiming "as of close".
+Reports label the basis honestly: an intraday run prints an
+`intraday snapshot, N% of session elapsed (volume pro-rated)` line rather than
+claiming "as of close".
 
 ---
 
@@ -247,15 +270,15 @@ rather than claiming "as of close".
 recent run of that day, capped at 260 days.
 
 Collapsing by date is what keeps `days_on_list` meaningful under an hourly
-schedule - without it an eight-run day would count as eight days of tenure.
+schedule — without it an eight-run day would count as eight days of tenure.
 `runs_today` records that the earlier runs happened, and `intraday[]` keeps the
 within-day series (last 12 runs).
 
 | Field | Meaning |
 |-------|---------|
 | `days_on_list` | Consecutive trading days on the screen (streak-based) |
-| `is_new` | First appearance in the current streak - the `NEW` flag |
-| `first_seen` | Earliest recorded appearance |
+| `is_new` | First appearance in the current streak — the `NEW` flag |
+| `first_seen` | Earliest recorded appearance in history |
 
 A name that drops off and returns reads as new again.
 
@@ -265,14 +288,20 @@ A name that drops off and returns reads as new again.
 
 Each run pulls the Nasdaq earnings calendar (reusing
 `earnings_expected_move.fetch_earnings_calendar`) and tags any screened name
-reporting within `EARNINGS_WARN_DAYS` (7) as `ER+Nd`. A calendar failure degrades
-to no tags rather than failing the run.
+reporting within `EARNINGS_WARN_DAYS` (7 calendar days) as `ER+Nd`. A calendar
+failure degrades to no tags rather than failing the run.
+
+For full straddle / implied-move detail on upcoming reporters, run
+`earnings_expected_move.py --briefing` (included in both daily orchestrators).
+See [README-earnings_expected_move.md](README-earnings_expected_move.md).
 
 ---
 
 ## Output
 
 ### Briefing (--briefing)
+
+Illustrative layout (numbers are examples; labels must match the setup/entry table):
 
 ```
 ## Stock Screener (2026-08-07)
@@ -284,18 +313,22 @@ to no tags rather than failing the run.
 
 | Ticker |    Price | Setup | Entry | Rules |   RSI |  RS/SPY |  x50DMA |     Stop |   R:R | Days |     Flags |                     Action |
 |--------|----------|-------|-------|-------|-------|---------|---------|----------|-------|------|-----------|----------------------------|
-|    NUE | $ 272.63 |    92 |    54 |   9/9 |  66.1 |  +13.8% |   +2.9A |  $254.48 |  open |    3 |         - |                    BUY NOW |
 |   STLD | $ 262.55 |    90 |    82 |   9/9 |  61.4 |   +8.9% |   +1.3A |  $244.31 |  1.41 |    5 |         - |                    BUY NOW |
+|    NUE | $ 272.63 |    92 |    54 |   9/9 |  66.1 |  +13.8% |   +2.9A |  $254.48 |  open |    3 |         - |             BUY / SCALE IN |
 |   BKNG | $ 214.42 |    96 |    19 |   8/9 |  73.2 |  +18.8% |   +4.3A |  $198.10 |  open |    1 | CHASE,NEW | STRONG - WAIT FOR PULLBACK |
 ```
 
+- STLD: setup 90, entry 82 → `BUY NOW`  
+- NUE: setup 92, entry 54 → `BUY / SCALE IN` (good vehicle, only moderate entry)  
+- BKNG: setup 96, entry 19 → `STRONG - WAIT FOR PULLBACK` + `CHASE`  
+
 ### Opportunities (--opportunities)
 
-Groups by what to *do*, not by score:
+Groups by what to *do*, not by a single score (setup floor via `--min-setup`):
 
-- **Actionable now** - good setup and good entry
-- **Strong but extended** - own the thesis, wait for the price
-- **Building / secondary** - moderate setup
+- **Actionable now** — good setup and good entry (`BUY NOW`, `BUY / SCALE IN`, `RS LEADER - ENTRY OK`)
+- **Strong but extended** — own the thesis, wait for the price
+- **Building / secondary** — moderate setup or speculative timing
 - **New to the screen today**
 - **Earnings within 7 days**
 
@@ -305,8 +338,8 @@ Groups by what to *do*, not by score:
 |------|---------|
 | `CHASE` | > 4.5 ATR above the 50-DMA, or >= 95th percentile of its own year |
 | `EXTENDED` | > 3.0 ATR above the 50-DMA, or >= 85th percentile |
-| `AT-MEAN` | < 0.5 ATR from the 50-DMA - a base, not a chase |
-| `NO-VOL` | ATR collapsed vs its own norm - usually a pending acquisition |
+| `AT-MEAN` | < 0.5 ATR from the 50-DMA — a base, not a chase |
+| `NO-VOL` | ATR collapsed vs its own norm — usually a pending acquisition |
 | `DIV-` | Bearish divergence (price up, RSI down) |
 | `DIV+` | Bullish divergence (price down, RSI up) |
 | `ER+Nd` | Earnings in N days |
@@ -318,7 +351,9 @@ Groups by what to *do*, not by score:
 | File | Description |
 |------|-------------|
 | `stock_screener_results.json` | Full analysis with all indicators per stock |
+| `stock_screener_history.json` | Day-collapsed tenure history (gitignored) |
 | `stock_screener_results.csv` | Flat export for spreadsheets (via `--csv`) |
+| `nine_rules_watchlist.json` | Short list for `nine_rules_gate.py` (via `--watchlist`) |
 
 ---
 
@@ -327,92 +362,114 @@ Groups by what to *do*, not by score:
 ### For Top Sectors (buy candidates)
 
 Look for stocks with:
-- Setup 70+ with 8-9 rules passed
-- EMA flag (trend fully aligned)
-- RS/SPY positive (outperforming the market)
-- Low ATR% (manageable risk)
-- No DIV- flag
+- Setup **70+** with 8–9 rules passed  
+- Entry high enough for the intended action (`BUY NOW` needs entry ≥ 65)  
+- EMA aligned / multi-timeframe aligned  
+- RS/SPY positive  
+- Manageable `risk_pct` / no `NO-VOL`  
+- No `DIV-` flag  
+- No imminent `ER+Nd` unless you explicitly accept gap risk  
 
-### For Bottom Sectors (avoid/value hunt)
+### For Bottom Sectors (avoid / value hunt)
 
 Two strategies:
-1. **Avoid:** Stocks with Score < 40, RS/SPY deeply negative, DIV- flag
-2. **Contrarian value:** Stocks in weak sectors with high rules count + bullish divergence (DIV+) — these are potential reversals
+1. **Avoid:** Low setup, deeply negative RS/SPY, `DIV-`, or `AVOID / SHORT BIAS`
+2. **Contrarian / leadership:** `RS LEADER - ENTRY OK` or `REVERSAL WATCH` with bullish divergence (`DIV+`) — different thesis from top-sector momentum
 
 ### Red Flags
 
-- `DIV-` + RSI > 65 + Score dropping → distribution phase, likely to fall further
-- RS/SPY < -10% → massively underperforming; needs a catalyst to reverse
-- ATR% > 6% → very volatile; position size accordingly
-- Rules < 4/9 → most criteria failing; stay away unless contrarian thesis is strong
+- `DIV-` + RSI > 65 + falling setup → distribution risk  
+- RS/SPY < -10% → massively underperforming; needs a catalyst  
+- High `risk_pct` or elevated `atr_vs_own_median` → size down  
+- Rules < 4/9 → most criteria failing  
+- `CHASE` / low entry with high setup → wait; do not force entry into extension  
+- `ER+Nd` → technicals may not survive the report  
 
 ---
 
-## Comparison to OvtLyrMimic.py
+## Screener vs nine-rules tools
 
-| Feature | OvtLyrMimic.py | stock_screener.py |
-|---------|---------------|-------------------|
-| Stocks analyzed | Manual list (Mag 7 + custom) | Auto-selected from breadth data |
-| Market breadth | Estimated from SPY position | Real breadth data from collector |
-| Sector breadth | Placeholder | Real A/D ratio integrated into score |
-| Relative strength | Not included | 20-day vs SPY |
-| ATR | Calculated for info only | Factored into score + displayed |
-| Divergence | Rule 9 only | Flagged visually + scored |
-| Output | Text dump per stock | Sorted table with signals |
-| Scoring | 9 rules binary (pass/fail) | Hybrid: composite score + 9 rules |
-| Sector selection | Manual | Automatic from breadth data |
+| Feature | `stock_screener.py` | `nine_rules_gate.py` |
+|---------|---------------------|----------------------|
+| Universe | Auto from top/bottom sectors (composite) | Exported watchlist only |
+| Scoring | Setup + entry axes, flags, stops | Nine-rules pass/fail (+ optional EM) |
+| Sector selection | Automatic multi-metric composite | Inherited from watchlist tags |
+| Relative strength | 20d / 60d vs SPY in setup score | Via shared indicators when run |
+| Output | Tables, opportunities, history | Per-name rules checklist |
 
 ---
 
 ## Performance
 
-- ~3-5 seconds per stock (1-year data fetch + calculation)
-- 10 stocks × 4 sectors = ~2-3 minutes total
-- 20 stocks × 4 sectors = ~5-6 minutes total
+- ~3–5 seconds per stock (1-year data fetch + calculation)  
+- 10 stocks × 4 sectors ≈ 2–3 minutes  
+- 20 stocks × 4 sectors ≈ 5–6 minutes  
 
 ---
 
 ## Watchlist Generation (--watchlist)
 
-Exports the top-scored stocks in a format that `OvtLyrMimic.py` can consume:
+Exports high-setup names for `nine_rules_gate.py`. Prefers top-sector names;
+bottom-sector entries are filtered more tightly (RS leader / reversal / high rules).
 
 ```bash
-# Generate watchlist (default: score >= 60, top 5 per sector)
+# Default: setup >= 60, top 5 per sector
 python3 stock_screener.py --watchlist
+
+# Higher bar
+python3 stock_screener.py --watchlist --min-setup 70
 
 # Custom output path
 python3 stock_screener.py --watchlist /path/to/my_watchlist.json
 ```
 
-Output (`ovtlyr_watchlist.json`):
+Output (`nine_rules_watchlist.json` shape):
+
 ```json
 {
-  "generated": "2026-06-26 07:54:59",
-  "source_date": "2026-06-25",
-  "min_score": 60,
-  "market_breadth_pct": 63.8,
+  "generated": "2026-08-07 15:30:00",
+  "source_date": "2026-08-07",
+  "min_setup_score": 60,
+  "market_breadth_pct": 66.7,
   "stocks": [
-    {"ticker": "BKNG", "sector": "Consumer Discretionary", "sector_type": "bottom", "score": 85, "rules_passed": 9},
-    {"ticker": "LNT", "sector": "Utilities", "sector_type": "top", "score": 86, "rules_passed": 8}
+    {
+      "ticker": "STLD",
+      "sector": "Materials",
+      "sector_type": "top",
+      "setup_score": 90.0,
+      "entry_score": 82.0,
+      "entry_label": "BUY NOW",
+      "rules_passed": 9
+    }
   ]
 }
 ```
 
-This feeds directly into `OvtLyrMimic.py` for the full Nine Rules analysis with real breadth context.
+Then:
+
+```bash
+python3 nine_rules_gate.py --briefing
+```
 
 ---
 
 ## Complete Pipeline
 
 ```
-market_breadth_collector.py    (sector breadth → identifies strongest/weakest)
+market_breadth_collector.py       (sector breadth → composite top/bottom)
          ↓
-stock_screener.py              (individual stock technicals → scores + signals)
+stock_screener.py                 (setup/entry scores, flags, history, ER tags)
          ↓
-stock_screener.py --watchlist  (exports top stocks → ovtlyr_watchlist.json)
+stock_screener.py --watchlist     → nine_rules_watchlist.json
          ↓
-OvtLyrMimic.py                (9-rule pass/fail analysis with real breadth data)
+nine_rules_gate.py                (9-rule gate on the short list)
+         ↓
+nine_rules_independent.py         (optional: core ∪ watchlist re-score)
+         ↓
+earnings_expected_move.py         (straddle EM for upcoming reports)
 ```
+
+Daily: `getTodaysStockScreenerData.sh` or `getStockScreenerData.bat`.
 
 ---
 
@@ -421,14 +478,18 @@ OvtLyrMimic.py                (9-rule pass/fail analysis with real breadth data)
 | Script | Purpose |
 |--------|---------|
 | `market_breadth_collector.py` | Sector-level breadth (must run first) |
+| `ta_indicators.py` | Shared library (import only — not a pipeline step) |
 | `stock_screener.py` | This script — individual stock technicals |
-| `OvtLyrMimic.py` | OVTLYR Nine Rules analysis (consumes watchlist) |
-| `market_ratios_collector.py` | Gold/Silver, Dow/Gold, S&P/Gold ratios |
-| `gsr_data_collector.py` | Gold/silver from FRED (1968+) |
-| `update_gsr_chart.py` | Chart generation |
+| `nine_rules_gate.py` | Nine-rules analysis on the exported watchlist |
+| `nine_rules_independent.py` | Independent re-score of core ∪ watchlist |
+| `earnings_expected_move.py` | Earnings calendar straddle / implied move |
+| `market_ratios_collector.py` | Gold/Silver, Dow/Gold, S&P/Gold ratios (GoldenRatios) |
+| `gsr_data_collector.py` | Gold/silver from FRED (GoldenRatios) |
+| `update_gsr_chart.py` | Chart generation (GoldenRatios) |
 
 ---
 
 ## License
 
-Personal use. Data sourced from Yahoo Finance under their terms of service.
+[CC0 1.0 Universal](LICENSE) — same as the rest of this project.  
+Data sourced from Yahoo Finance and other public endpoints under their terms of service.

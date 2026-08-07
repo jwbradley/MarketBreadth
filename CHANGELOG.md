@@ -7,6 +7,52 @@ Versions are informal tags for a personal/public toolkit (not necessarily PyPI r
 
 ---
 
+## [2.4.0] — 2026-08-07
+
+### Screener takeaways (two-axis scoring)
+
+- **`ta_indicators.py`**: additive scoring and bar-hygiene APIs:
+  - `session_fraction_elapsed()` — U-shaped session fraction for pro-rating intraday volume
+  - `drop_partial_bar()` — still available; opt-in via `use_complete_bars=True`
+  - **`use_complete_bars` defaults to `False`** so hourly mid-session runs keep live prices
+  - `_Budget` normalizer — each score term declares achievable min/max (fixes fixed-divisor saturation)
+  - `setup_quality_score()` / `entry_timing_score()` / `entry_label()` / `extension_flag()`
+  - ATR floors (0.5% extension, 0.75% stops), ±8 ATR extension cap, `NO-VOL` flag
+  - Stops, targets, risk %, R:R (`rr_ratio` is `None` / shown as `open` at new highs)
+  - Rules 6 and 7 made discriminating: dollar-volume + participation; absolute + relative ATR
+- **`stock_screener.py`**:
+  - Earnings calendar map + `ER+Nd` tagging (soft-fail if calendar unavailable)
+  - History: one record per trading day, `runs_today`, `intraday[]`, `days_on_list` / `is_new`
+  - Honest `_asof_line` for intraday vs close
+  - `--min-setup` floor for `--opportunities` and `--watchlist`
+  - Action-bucketed `--opportunities` (actionable / extended / building / new / earnings soon)
+
+### Documentation
+
+- Expanded [README-stock_screener.md](README-stock_screener.md) and [README-ta_indicators.md](README-ta_indicators.md).
+- Main [README.md](README.md), [BEST_PRACTICES.md](BEST_PRACTICES.md), and this changelog updated for setup/entry, earnings, and pipeline.
+
+---
+
+## [2.3.0] — 2026-07-31 / 2026-08-05
+
+### Added
+
+- **`earnings_expected_move.py`**: ATM straddle-implied move for names reporting over the next few sessions. Selects the **first option expiration after the report** (not the nearest pre-earnings expiry). Quality labels (GOOD / WIDE / STALE / …), RICH / CHEAP / DILUTED vs realized history, JSON snapshot.
+- **`README-earnings_expected_move.md`**: plain-language glossary, CLI, column reference, pipeline notes, `lxml`/venv guidance (expanded 2026-08-06 for non-options readers).
+
+### Orchestration
+
+- **`getStockScreenerData.bat`**: appends `earnings_expected_move.py --briefing`; uses `cd /d "%~dp0"` so launch cwd does not matter.
+- **`getTodaysStockScreenerData.sh`**: same briefing step so Linux daily log matches Windows order.
+
+### Notes
+
+- Requires `lxml` for Yahoo earnings-date history (Hist Avg / Verdict). Without it, straddles still price; history columns show `N/A`.
+- Calendar / quote failures degrade; they do not abort the daily run.
+
+---
+
 ## [2.2.1] — 2026-07-14
 
 ### Windows encoding (follow-up)
@@ -60,7 +106,7 @@ Daily runners (`.sh` / `.bat`) call the new script names. Watchlist loaders stil
 | Soft-fail per step | Yes (`run_step` / `run_report`) | No (batch continues only if each `@python` is allowed to fail silently with `@`; check the log) |
 | Venv | Activates `GoldenRatios/.venv` | Uses system / PATH `python` |
 | Paths | Hardcoded under `~/myPrograms/KSI/` | Hardcoded `LOG=` OneDrive path in the sample bat—**edit for your machine** |
-| Layout | Runs from KSI parent (MarketBreadth + GoldenRatios) | Expects you to run from a directory where the listed `.py` modules resolve |
+| Layout | Runs from KSI parent (MarketBreadth + GoldenRatios) | Bat cds to its own directory (`%~dp0`); modules resolve from there |
 | Exit code | Non-zero if any step failed | Batch does not aggregate failure count |
 
 Markdown docs may still use Unicode for readability; **runtime CLI strings** should stay ASCII-safe so Windows logging does not crash.
@@ -72,7 +118,7 @@ Markdown docs may still use Unicode for readability; **runtime CLI strings** sho
 ### Added
 
 - **`nine_rules_independent.py`**: independent nine-rules re-score with layered universe (core book ∪ personal `tickers.txt` ∪ screener watchlist ∪ CLI). Optional overlap report vs funnel names. Uses shared `ta_indicators` when available.
-- Daily pipeline step in **`getTodaysStockScreenerData.sh`**: runs v4 with `--union-watchlist --briefing`; full report → `logs/nine_rules_independent.log`.
+- Daily pipeline step in **`getTodaysStockScreenerData.sh`**: runs with `--union-watchlist --briefing`; full report → `logs/nine_rules_independent.log`.
 
 ---
 
@@ -89,7 +135,7 @@ Markdown docs may still use Unicode for readability; **runtime CLI strings** sho
 - Within-sector stock selection ranks by **relative strength + liquidity** (not CSV/alphabetical order).
 - Default **$20M** average dollar-volume floor (`SCREENER_MIN_DOLLAR_VOL`).
 - Nine-rules **Rule 3 / Rule 4** use real market and sector breadth (no longer hardcoded pass in the screener).
-- Thesis-aware signals: **Momentum Buy**, **Reversal Watch**, **RS in Weak Sector**, etc.
+- Thesis-aware signals (later refined into setup/entry labels in 2.4.0).
 - Watchlist export prefers top-sector names; weak-sector entries are filtered more tightly.
 
 ### Orchestration
