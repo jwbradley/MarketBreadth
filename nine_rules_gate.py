@@ -45,6 +45,7 @@ from ta_indicators import (  # noqa: E402
     evaluate_nine_rules,
     nine_rules_signal,
 )
+import market_cache  # noqa: E402
 
 DATA_DIR = os.environ.get(
     'MARKET_BREADTH_DIR',
@@ -340,7 +341,7 @@ def analyze_ticker(
     period defaults to 1y so EMA100/SMA200 and screener math align.
     """
     try:
-        hist = yf.Ticker(ticker).history(period=period, auto_adjust=True)
+        hist = market_cache.history(ticker, period=period, auto_adjust=True)
     except Exception:
         return None
 
@@ -383,8 +384,8 @@ def analyze_ticker(
 def run_analysis(tickers, market_breadth_pct=None, breadth_data=None, verbose=True):
     """Run nine-rules gate on a list of tickers or watchlist dicts."""
     try:
-        spy_hist = yf.Ticker('SPY').history(period='1y', auto_adjust=True)
-        spy_close = spy_hist['Close'] if not spy_hist.empty else None
+        spy_hist = market_cache.history('SPY', period='1y', auto_adjust=True)
+        spy_close = spy_hist['Close'] if spy_hist is not None and not spy_hist.empty else None
     except Exception:
         spy_close = None
 
@@ -497,7 +498,14 @@ Examples:
         help='Skip ATM IV / expected-move options fetch (faster)',
     )
 
+    parser.add_argument(
+        '--no-cache', action='store_true',
+        help='Bypass the OHLCV disk cache and re-fetch (see market_cache.py)',
+    )
+
     args = parser.parse_args()
+    if args.no_cache:
+        market_cache.disable()
     show_em = not args.no_expected_move
 
     breadth_data = load_breadth()

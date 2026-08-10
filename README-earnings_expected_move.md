@@ -64,6 +64,9 @@ python3 earnings_expected_move.py --no-history
 
 # Machine-readable
 python3 earnings_expected_move.py --json
+
+# Re-fetch everything, ignoring the disk cache
+python3 earnings_expected_move.py --no-cache
 ```
 
 ### Options
@@ -81,6 +84,7 @@ python3 earnings_expected_move.py --json
 | `--briefing` | Markdown table instead of plain text |
 | `--json` | JSON to stdout |
 | `--no-save` / `--output PATH` | Control the `earnings_expected_move_latest.json` snapshot |
+| `--no-cache` | Bypass the disk cache and re-fetch (see `README-market_cache.md`) |
 | `--verbose` | Per-ticker progress |
 
 ---
@@ -176,6 +180,25 @@ Wired into `getStockScreenerData.bat`, appending a markdown section to
 
 Also writes `earnings_expected_move_latest.json` (`stocks[]` with full straddle legs, per-report realized moves, and quality/verdict fields) for downstream use.
 
+### Caching
+
+Two of the expensive calls are cached on disk via `market_cache.py`:
+
+- **Nasdaq calendar** (1h TTL) — a 3-session scan hits the endpoint 3× per run,
+  and the report dates do not change. The 1h ceiling exists because the market
+  caps `--include-large-caps` filters on drift intraday.
+- **Realized earnings history** (12h TTL) — `realized_earnings_moves()` costs two
+  round-trips per ticker (`get_earnings_dates()` plus `history(period='3y')`), and
+  `--include-large-caps 10` fires it ~33× instead of ~9×. A `None` result is
+  cached too: "no usable history" is common among recently-listed additions and
+  costs the same two calls to rediscover.
+
+A warm run of the same window drops from ~14s to ~7s at a 100% hit rate. Pass
+`--no-cache` to bypass, and see `README-market_cache.md` for the store itself —
+including why the still-forming daily bar is deliberately never cached.
+
+`FETCH_DELAY` is skipped on a cache hit, since no HTTP request was made to pace.
+
 ---
 
 ## Caveats
@@ -193,5 +216,6 @@ Also writes `earnings_expected_move_latest.json` (`stocks[]` with full straddle 
 ## Related
 
 - `Documents\MarketNews\Expected-Move-Guide.md` — methodology (§6 straddle, §C earnings plays)
+- `market_cache.py` / `README-market_cache.md` — the shared disk cache this tool leans on hardest
 - `nine_rules_gate.py` — general expected move (nearest expiration); source of the shared IV math
 - `stock_screener.py --watchlist` — produces `nine_rules_watchlist.json`

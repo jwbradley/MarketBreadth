@@ -51,6 +51,7 @@ from ta_indicators import (  # noqa: E402
     relative_strength,
     setup_quality_score,
 )
+import market_cache  # noqa: E402
 
 # Configuration
 DATA_DIR = os.environ.get(
@@ -359,7 +360,7 @@ def prescreen_sector_tickers(tickers, spy_close, min_dollar_vol=MIN_DOLLAR_VOLUM
         if hist is None or hist.empty or len(hist) < 60:
             # Single-ticker download path when multi fails shape
             try:
-                hist = yf.Ticker(t).history(period='1y', auto_adjust=True)
+                hist = market_cache.history(t, period='1y', auto_adjust=True)
             except Exception:
                 continue
         if hist is None or hist.empty or len(hist) < 60:
@@ -446,7 +447,7 @@ def analyze_sector(
         if len(results) >= top_n:
             break
         try:
-            hist = yf.Ticker(ticker).history(period='1y', auto_adjust=True)
+            hist = market_cache.history(ticker, period='1y', auto_adjust=True)
         except Exception:
             hist = None
         indicators = calculate_from_ohlcv(hist, spy_close=spy_close, min_bars=200)
@@ -522,8 +523,8 @@ def run_screener(num_sectors=2, top_stocks=10, specific_sector=None):
     print()
 
     # SPY once for RS
-    spy_hist = yf.Ticker('SPY').history(period='1y', auto_adjust=True)
-    spy_close = spy_hist['Close'] if not spy_hist.empty else None
+    spy_hist = market_cache.history('SPY', period='1y', auto_adjust=True)
+    spy_close = spy_hist['Close'] if spy_hist is not None and not spy_hist.empty else None
 
     # Earnings calendar once, shared across sectors.
     earnings_map = fetch_earnings_map()
@@ -1066,7 +1067,15 @@ Examples:
         help='Export watchlist for nine_rules_gate.py',
     )
 
+    parser.add_argument(
+        '--no-cache', action='store_true',
+        help='Bypass the OHLCV disk cache and re-fetch (see market_cache.py)',
+    )
+
     args = parser.parse_args()
+
+    if args.no_cache:
+        market_cache.disable()
 
     if args.briefing:
         show_briefing()

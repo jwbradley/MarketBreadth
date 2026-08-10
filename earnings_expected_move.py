@@ -57,6 +57,7 @@ from nine_rules_gate import (  # noqa: E402
     _sorted_expirations,
     get_expected_move,
 )
+import market_cache  # noqa: E402
 
 DATA_DIR = os.environ.get(
     'MARKET_BREADTH_DIR',
@@ -80,6 +81,18 @@ REQUEST_HEADERS = {
 
 # Politeness delay between Yahoo option-chain fetches (seconds).
 FETCH_DELAY = 0.3
+
+# Disk cache namespaces and TTLs (see market_cache.py).
+#
+# Realized earnings history only changes when a new report prints, so 12h is
+# safe and spans the whole trading day - the batch run at 7am and an ad-hoc run
+# at 3pm hit the same entries. The Nasdaq calendar gets 1h: the report dates
+# themselves are stable, but the market caps that --include-large-caps filters
+# on drift intraday, and an hour keeps the admitted set from going stale.
+CACHE_NS_HISTORY = 'earnings_history'
+CACHE_TTL_HISTORY = 12 * 3600
+CACHE_NS_CALENDAR = 'nasdaq_calendar'
+CACHE_TTL_CALENDAR = 3600
 
 # Verdict thresholds: implied vs average realized earnings move.
 RICH_RATIO = 1.2
@@ -245,6 +258,13 @@ def normalize_timing(raw: Optional[str]) -> str:
 
 def fetch_calendar_day(session: date, verbose: bool = False) -> List[Dict[str, Any]]:
     """Fetch one day of the Nasdaq earnings calendar. Returns [] on any failure."""
+    cache_key = {'session': session.isoformat()}
+    hit, cached = market_cache.json_get(CACHE_NS_CALENDAR, cache_key)
+    if hit and cached:
+        if verbose:
+            print(f"  {session}: {len(cached)} reporters (cached)")
+        return cached
+
     url = NASDAQ_CALENDAR_URL.format(date=session.isoformat())
     req = urllib.request.Request(url, headers=REQUEST_HEADERS)
     try:
@@ -274,6 +294,11 @@ def fetch_calendar_day(session: date, verbose: bool = False) -> List[Dict[str, A
             'eps_forecast': (row.get('epsForecast') or '').strip() or None,
             'fiscal_quarter': (row.get('fiscalQuarterEnding') or '').strip() or None,
         })
+    # Only cache a non-empty day. An empty list is how every failure path above
+    # reports itself, and caching a 403 for an hour would hide the outage.
+    # A genuinely empty session (a holiday) costs one cheap re-fetch.
+    if out:
+        market_cache.json_set(CACHE_NS_CALENDAR, cache_key, out, ttl=CACHE_TTL_CALENDAR)
     return out
 
 
@@ -517,6 +542,32 @@ def price_straddle(
 # Realized earnings moves (implied vs history)
 # ---------------------------------------------------------------------------
 
+def realized_earnings_moves_cached(
+    stock: yf.Ticker,
+    ticker: str,
+    lookback: int = 8,
+) -> Tuple[Optional[Dict[str, Any]], bool]:
+    """
+    Cached wrapper over realized_earnings_moves(). Returns (result, was_cached).
+
+    This is the expensive call in the run - get_earnings_dates() plus three years
+    of daily bars, twice per ticker - and the answer only changes when a new
+    report prints, so a few hours of TTL is safe. `was_cached` lets the caller
+    skip FETCH_DELAY, since a cache hit made no HTTP request to pace.
+
+    A None result is cached too: 'this name has no usable earnings history' is
+    common among the --include-large-caps additions (recent listings) and costs
+    the same two round-trips to rediscover.
+    """
+    key = {'ticker': ticker.upper(), 'lookback': lookback}
+    hit, payload = market_cache.json_get(CACHE_NS_HISTORY, key)
+    if hit:
+        return payload, True
+    result = realized_earnings_moves(stock, lookback=lookback)
+    market_cache.json_set(CACHE_NS_HISTORY, key, result, ttl=CACHE_TTL_HISTORY)
+    return result, False
+
+
 def realized_earnings_moves(
     stock: yf.Ticker,
     lookback: int = 8,
@@ -701,8 +752,10 @@ def analyze_entry(
     time.sleep(FETCH_DELAY)
 
     if include_history:
-        result['history'] = realized_earnings_moves(stock)
-        time.sleep(FETCH_DELAY)
+        result['history'], from_cache = realized_earnings_moves_cached(stock, ticker)
+        # No HTTP request was made on a cache hit, so there is nothing to pace.
+        if not from_cache:
+            time.sleep(FETCH_DELAY)
 
     implied = (straddle or {}).get('implied_move_pct')
     if implied is None:
@@ -979,7 +1032,14 @@ Examples:
     parser.add_argument('--no-save', action='store_true', help='Do not write the latest JSON')
     parser.add_argument('--output', help='Path for the JSON snapshot')
     parser.add_argument('--verbose', action='store_true', help='Per-ticker progress')
+    parser.add_argument(
+        '--no-cache', action='store_true',
+        help='Bypass the disk cache and re-fetch everything (see market_cache.py)',
+    )
     args = parser.parse_args()
+
+    if args.no_cache:
+        market_cache.disable()
 
     if args.sessions < 1:
         print('ERROR: --sessions must be >= 1', file=sys.stderr)
@@ -1114,6 +1174,10 @@ Examples:
                             'implied_move_pct': None, 'verdict': 'N/A'})
 
     results = sort_results(results)
+
+    # stderr so it never lands in the markdown briefing appended to the log.
+    if market_cache.enabled():
+        print(f"  {market_cache.stats_line()}", file=sys.stderr)
 
     if args.json:
         print(json.dumps({

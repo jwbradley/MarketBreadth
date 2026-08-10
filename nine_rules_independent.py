@@ -66,6 +66,22 @@ except ImportError:
     print("Run: pip install yfinance pandas numpy")
     sys.exit(1)
 
+# Soft import: this tool deliberately duplicates its scoring path rather than
+# importing from nine_rules_gate.py, so it must still run if dropped somewhere
+# without the rest of the suite. The cache is an optimization, not a dependency.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+try:
+    import market_cache
+except ImportError:
+    market_cache = None
+
+
+def _history(ticker: str, period: str = "1y", auto_adjust: bool = True):
+    """Cached OHLCV when market_cache is available, direct yfinance otherwise."""
+    if market_cache is not None:
+        return market_cache.history(ticker, period=period, auto_adjust=auto_adjust)
+    return yf.Ticker(ticker).history(period=period, auto_adjust=auto_adjust)
+
 # ---------------------------------------------------------------------------
 # Paths (same DATA_DIR convention as nine_rules_gate.py / stock_screener.py)
 # ---------------------------------------------------------------------------
@@ -739,7 +755,7 @@ def analyze_ticker(
     period: str = "1y",
 ) -> Optional[Dict[str, Any]]:
     try:
-        hist = yf.Ticker(ticker).history(period=period, auto_adjust=True)
+        hist = _history(ticker, period=period, auto_adjust=True)
     except Exception:
         return None
 
@@ -791,8 +807,8 @@ def run_analysis(
 ) -> List[Dict[str, Any]]:
     sector_map = sector_map or {}
     try:
-        spy_hist = yf.Ticker("SPY").history(period="1y", auto_adjust=True)
-        spy_close = spy_hist["Close"] if not spy_hist.empty else None
+        spy_hist = _history("SPY", period="1y", auto_adjust=True)
+        spy_close = spy_hist["Close"] if spy_hist is not None and not spy_hist.empty else None
     except Exception:
         spy_close = None
 
@@ -1131,7 +1147,14 @@ Examples:
         help="Less per-ticker chatter during analysis",
     )
 
+    parser.add_argument(
+        "--no-cache", action="store_true",
+        help="Bypass the OHLCV disk cache and re-fetch (see market_cache.py)",
+    )
+
     args = parser.parse_args()
+    if args.no_cache and market_cache is not None:
+        market_cache.disable()
     show_em = not args.no_expected_move
 
     if args.watchlist_only and args.union_watchlist:
