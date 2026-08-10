@@ -6,14 +6,15 @@ Daily toolkit for a **quick, structured view** of US large-cap market participat
 |-------|--------|---------|
 | Sector breadth | `market_breadth_collector.py` | A/D, % above DMAs, volume, thrust for S&P 500 + 11 GICS sectors |
 | Shared TA | `ta_indicators.py` | Library only (no CLI): indicators, two-axis scores, nine rules, sector rank |
+| Shared cache | `market_cache.py` | TTL disk cache for OHLCV / Nasdaq calendar / earnings history (import only) |
 | Stock screen | `stock_screener.py` | RS + liquidity ranking, **setup / entry** scores, action labels, ER tags |
 | Rules gate | `nine_rules_gate.py` | Nine-rules pass/fail on the exported watchlist |
 | Independent scan | `nine_rules_independent.py` | Re-score core book ∪ watchlist (overlap report) |
-| Earnings move | `earnings_expected_move.py` | Straddle-implied move for names reporting soon |
+| Earnings move | `earnings_expected_move.py` | Straddle-implied move for names reporting soon (+ large non-index caps) |
 | Daily run (Linux) | `getTodaysStockScreenerData.sh` | Cron orchestrator (soft-fail, one log) |
 | Daily run (Windows) | `getStockScreenerData.bat` | Same pipeline order for Task Scheduler / console |
 
-`ta_indicators.py` is **imported** by the screener and nine-rules tools; it is not a separate step in the daily runners.
+`ta_indicators.py` and `market_cache.py` are **imported** by the other tools; they are not separate steps in the daily runners.
 
 Optional macro companions (separate package): GoldenRatios GSR / market-ratios collectors.
 
@@ -23,11 +24,13 @@ Optional macro companions (separate package): GoldenRatios GSR / market-ratios c
 
 | Doc | Contents |
 |-----|----------|
+| [INTERPRETATION_GUIDE.md](INTERPRETATION_GUIDE.md) | **How to read daily log + JSON outputs (start here after a run)** |
 | [BEST_PRACTICES.md](BEST_PRACTICES.md) | How to run and interpret the suite day to day |
 | [README-stock_screener.md](README-stock_screener.md) | Screener CLI, two-axis scoring, opportunities, history |
 | [README-ta_indicators.md](README-ta_indicators.md) | Shared library API, partial bar, scoring contract |
+| [README-market_cache.md](README-market_cache.md) | Shared TTL disk cache (OHLCV, calendar, earnings history) |
 | [README-nine_rules.md](README-nine_rules.md) | Nine-rules gate and independent scan |
-| [README-earnings_expected_move.md](README-earnings_expected_move.md) | Earnings straddle / implied move report |
+| [README-earnings_expected_move.md](README-earnings_expected_move.md) | Earnings straddle / implied move report (`--include-large-caps`) |
 | [Expected-Move-Guide.md](Expected-Move-Guide.md) | Options expected-move / IV concepts |
 | [DISCLAIMER.md](DISCLAIMER.md) | Full risk / no-advice disclaimer |
 | [CHANGELOG.md](CHANGELOG.md) | Version history |
@@ -45,6 +48,7 @@ market_breadth_collector.py
         │
         ▼  market_breadth_latest.json
 ta_indicators.py  ◄── shared TA + setup/entry scores + nine rules + sector rank
+market_cache.py   ◄── shared TTL disk cache (.market_cache/) for OHLCV + calendar
         │
         ├── stock_screener.py
         │      → setup/entry scores, --opportunities, --watchlist, ER tags, history
@@ -52,7 +56,7 @@ ta_indicators.py  ◄── shared TA + setup/entry scores + nine rules + sector
         │         ▼  nine_rules_watchlist.json
         ├── nine_rules_gate.py           → same rules math, short-list gate
         ├── nine_rules_independent.py    → core ∪ watchlist re-score
-        └── earnings_expected_move.py    → straddle EM for upcoming reports
+        └── earnings_expected_move.py    → straddle EM (+ --include-large-caps in daily run)
                  (also feeds ER tags into the screener via shared calendar helper)
 
 getTodaysStockScreenerData.sh  → Linux: collect → screen → report → nine rules → earnings
@@ -87,12 +91,13 @@ Sectors for the **screener** are chosen by a **multi-metric composite** (not one
 ## Requirements
 
 ```bash
-pip install yfinance pandas numpy lxml
+pip install yfinance pandas numpy lxml pyarrow
 ```
 
 - Python 3.8+ recommended  
 - Network access for Yahoo Finance, the public S&P 500 constituent CSV, and (for earnings history) Nasdaq calendar endpoints  
 - **`lxml`** is required for Yahoo earnings-date history used by `earnings_expected_move.py` (Hist Avg / Verdict); straddles still price without it  
+- **`pyarrow`** backs the OHLCV parquet store in `market_cache.py` (DataFrame cache). Without it, OHLCV caching degrades; JSON calendar/history caches still work  
 - No API key for the default setup  
 
 On the Linux host used with the daily script, prefer the shared venv:
@@ -122,7 +127,8 @@ python3 stock_screener.py --watchlist
 python3 nine_rules_gate.py --briefing
 
 # 5. Optional: earnings straddle report (next few sessions)
-python3 earnings_expected_move.py --briefing
+#    Daily runners add --include-large-caps 10 so $10B+ non-index names (e.g. RKLB) appear
+python3 earnings_expected_move.py --briefing --include-large-caps 10
 ```
 
 Or one daily job:
@@ -144,7 +150,9 @@ REM 2) Script cds to its own directory so .py modules resolve from any caller cw
 getStockScreenerData.bat
 ```
 
-Both runners follow the same order: GoldenRatios collectors (if present) → breadth → screener → watchlist → briefings → nine-rules gate → nine_rules_independent → **earnings expected move**. The Linux script soft-fails per step and activates `GoldenRatios/.venv`; the `.bat` does not—see [BEST_PRACTICES.md](BEST_PRACTICES.md) and [CHANGELOG.md](CHANGELOG.md).
+Both runners follow the same order: GoldenRatios collectors (if present) → breadth → screener → watchlist → briefings → nine-rules gate → nine_rules_independent → **earnings expected move** (`--briefing --include-large-caps 10`). The Linux script soft-fails per step and activates `GoldenRatios/.venv`; the `.bat` does not—see [BEST_PRACTICES.md](BEST_PRACTICES.md) and [CHANGELOG.md](CHANGELOG.md).
+
+Repeated Yahoo / Nasdaq fetches across steps are shared via **`market_cache.py`** (`.market_cache/` under the data dir). Pass `--no-cache` on any of the four tools to force a full re-fetch; set `MARKET_CACHE_DISABLE=1` to turn the cache off process-wide. Details: [README-market_cache.md](README-market_cache.md).
 
 ### Scheduled runs (example, weekdays)
 
@@ -185,8 +193,11 @@ python3 market_breadth_collector.py --update-constituents
 | `stock_screener_history.json` | One record per trading day (tenure / NEW / runs_today) |
 | `nine_rules_watchlist.json` | Short list for nine-rules gate |
 | `earnings_expected_move_latest.json` | Latest earnings straddle snapshot |
+| `.market_cache/` | Shared TTL cache (OHLCV parquet, Nasdaq calendar, earnings history) — gitignored |
 
 Environment overrides: `MARKET_BREADTH_DIR` or `GSR_DATA_DIR`.  
+Cache root override: `MARKET_CACHE_DIR` (default `$DATA_DIR/.market_cache`).  
+Disable cache: `MARKET_CACHE_DISABLE=1`.  
 Liquidity floor for screener: `SCREENER_MIN_DOLLAR_VOL` (default `20000000`).  
 Setup floor for opportunities/watchlist: `stock_screener.py --min-setup` (default `60`).
 
@@ -202,9 +213,10 @@ Setup floor for opportunities/watchlist: `stock_screener.py --min-setup` (defaul
    - High setup + low entry → `STRONG - WAIT FOR PULLBACK` (thesis OK, price extended)  
    - Weak sector variants use mean-reversion labels (`RS LEADER *`, `REVERSAL WATCH`)  
 5. **Gate** — Nine rules on the watchlist only.  
-6. **Earnings** — `ER+Nd` flags and the earnings expected-move table; technicals do not survive an earnings gap.
+6. **Earnings** — `ER+Nd` flags and the earnings expected-move table (daily run includes S&P 500 + watchlist **plus** known-cap names ≥ $10B). Technicals do not survive an earnings gap.
 
 Start with `stock_screener.py --opportunities` (action buckets), then the full briefing.  
+For a section-by-section walkthrough of `logs/todaysMarketBreadth.log` and every output file, use **[INTERPRETATION_GUIDE.md](INTERPRETATION_GUIDE.md)**.  
 Read [BEST_PRACTICES.md](BEST_PRACTICES.md) before sizing any idea from this toolkit.
 
 For options expected-move / IV concepts: [Expected-Move-Guide.md](Expected-Move-Guide.md) and [README-earnings_expected_move.md](README-earnings_expected_move.md).
@@ -216,7 +228,8 @@ For options expected-move / IV concepts: [Expected-Move-Guide.md](Expected-Move-
 ```
 MarketBreadth/
 ├── market_breadth_collector.py
-├── ta_indicators.py              # shared library (import only)
+├── ta_indicators.py              # shared TA library (import only)
+├── market_cache.py               # shared TTL disk cache (import only)
 ├── stock_screener.py
 ├── nine_rules_gate.py
 ├── nine_rules_independent.py
@@ -224,9 +237,11 @@ MarketBreadth/
 ├── getTodaysStockScreenerData.sh   # Linux/macOS daily runner
 ├── getStockScreenerData.bat        # Windows daily runner (edit LOG=)
 ├── README.md
+├── INTERPRETATION_GUIDE.md         # how to read daily output
 ├── README-stock_screener.md
 ├── README-nine_rules.md
 ├── README-ta_indicators.md
+├── README-market_cache.md
 ├── README-earnings_expected_move.md
 ├── Expected-Move-Guide.md
 ├── BEST_PRACTICES.md
@@ -235,7 +250,8 @@ MarketBreadth/
 ├── CONTRIBUTING.md
 ├── SECURITY.md
 ├── LICENSE                 # CC0 1.0
-└── logs/                   # gitignored
+├── logs/                   # gitignored
+└── .market_cache/          # gitignored (runtime cache)
 ```
 
 ---
@@ -244,12 +260,15 @@ MarketBreadth/
 
 | Problem | What to try |
 |---------|-------------|
-| `ModuleNotFoundError: yfinance` | `pip install yfinance pandas numpy lxml` |
+| `ModuleNotFoundError: yfinance` | `pip install yfinance pandas numpy lxml pyarrow` |
 | Empty / weekend data | Markets closed; wait for a session |
 | Stale constituents | `--update-constituents` |
 | Screener vs nine-rules gate disagree | Ensure both import `ta_indicators.py`; re-run watchlist after screen |
 | Hist Avg / Verdict always `N/A` | Install `lxml` into the **same** Python/venv that runs `earnings_expected_move.py` |
-| Slow full run | Normal: full SPX download + multi-sector pre-rank |
+| Slow full run | Normal: full SPX download + multi-sector pre-rank. Warm `.market_cache/` helps later steps; use `--no-cache` only when debugging stale data |
+| Earnings table missing big non-S&P names (RKLB, …) | Daily runners pass `--include-large-caps 10`. Manual runs need that flag; default universe is S&P 500 + watchlist only |
+| Earnings table full of SPACs | Do **not** use `--all-calendar --min-market-cap` as a substitute for `--include-large-caps` (unknown caps pass the min filter) |
+| Stale OHLCV / calendar after a code change | `python3 market_cache.py --purge` or `--purge-all`, or pass `--no-cache` once |
 | Step failed in daily script (Linux) | Check `logs/errors.log`; other steps may still have completed |
 | `UnicodeEncodeError` on Windows | Use current CLI code (ASCII-safe prints). Or set `PYTHONIOENCODING=utf-8` / use a UTF-8 console |
 | `.bat` log missing / wrong place | Edit `LOG=` in `getStockScreenerData.bat` to a writable path on your machine |

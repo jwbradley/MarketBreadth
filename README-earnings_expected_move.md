@@ -56,8 +56,8 @@ python3 earnings_expected_move.py --all-calendar
 # Large caps only (billions)
 python3 earnings_expected_move.py --all-calendar --min-market-cap 10
 
-# Markdown briefing (used by getStockScreenerData.bat)
-python3 earnings_expected_move.py --briefing
+# Markdown briefing (daily runners add --include-large-caps 10)
+python3 earnings_expected_move.py --briefing --include-large-caps 10
 
 # Faster: skip the realized-move lookback
 python3 earnings_expected_move.py --no-history
@@ -166,17 +166,25 @@ Straddle mids are only meaningful while the options market is quoting. The 7:00 
 
 ## Integration
 
-Wired into `getStockScreenerData.bat`, appending a markdown section to
-`Documents\MarketNews\todayStockScreener.log`:
+Both daily orchestrators append a markdown earnings section. The production command is:
 
 ```bat
-@python earnings_expected_move.py --briefing >> "%LOG%"
+REM getStockScreenerData.bat (Windows)
+@python earnings_expected_move.py --briefing --include-large-caps 10 >> "%LOG%"
 ```
+
+```bash
+# getTodaysStockScreenerData.sh (Linux / macOS) — same flags
+python3 earnings_expected_move.py --briefing --include-large-caps 10
+```
+
+`--include-large-caps 10` is required for the wider table (RKLB-class names). Omitting it
+restores the historical ~9-row S&P 500 + watchlist-only output.
 
 > **Note:** `getStockScreenerData.bat` previously had no `cd`, so every `python` call
 > resolved against the *caller's* working directory — running it from anywhere other than
-> `C:\Users\DT17787` silently failed all 14 steps while still logging "Complete". It now
-> starts with `cd /d "%~dp0"` (matching `morning-crons.bat`) and works from any directory.
+> its own folder silently failed all steps while still logging "Complete". It now
+> starts with `cd /d "%~dp0"` and works from any directory.
 
 Also writes `earnings_expected_move_latest.json` (`stocks[]` with full straddle legs, per-report realized moves, and quality/verdict fields) for downstream use.
 

@@ -55,7 +55,7 @@ echo [%date% %time%] Running: nine_rules_gate.py --briefing >> "%LOG%"
 echo [%date% %time%] Running: nine_rules_independent.py --union-watchlist --briefing --no-expected-move --no-save >> "%LOG%"
 @python nine_rules_independent.py --union-watchlist --briefing --no-expected-move --no-save >> "%LOG%"
 
-echo [%date% %time%] Running: earnings_expected_move.py --briefing >> "%LOG%"
-@python earnings_expected_move.py --briefing >> "%LOG%"
+echo [%date% %time%] Running: earnings_expected_move.py --briefing --include-large-caps 10 >> "%LOG%"
+@python earnings_expected_move.py --briefing --include-large-caps 10 >> "%LOG%"
 
 echo [%date% %time%] === Stock Screener Data Collection Complete === >> "%LOG%"

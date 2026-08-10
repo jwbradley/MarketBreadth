@@ -60,6 +60,9 @@ python3 stock_screener.py --csv
 # Watchlist for nine_rules_gate.py (setup floor default 60)
 python3 stock_screener.py --watchlist
 python3 stock_screener.py --watchlist --min-setup 65
+
+# Bypass the shared OHLCV disk cache (see README-market_cache.md)
+python3 stock_screener.py --sectors 3 --no-cache
 ```
 
 ### Workflow (run in sequence)
@@ -292,7 +295,7 @@ reporting within `EARNINGS_WARN_DAYS` (7 calendar days) as `ER+Nd`. A calendar
 failure degrades to no tags rather than failing the run.
 
 For full straddle / implied-move detail on upcoming reporters, run
-`earnings_expected_move.py --briefing` (included in both daily orchestrators).
+`earnings_expected_move.py --briefing --include-large-caps 10` (included in both daily orchestrators).
 See [README-earnings_expected_move.md](README-earnings_expected_move.md).
 
 ---
@@ -478,7 +481,8 @@ Daily: `getTodaysStockScreenerData.sh` or `getStockScreenerData.bat`.
 | Script | Purpose |
 |--------|---------|
 | `market_breadth_collector.py` | Sector-level breadth (must run first) |
-| `ta_indicators.py` | Shared library (import only — not a pipeline step) |
+| `ta_indicators.py` | Shared TA library (import only — not a pipeline step) |
+| `market_cache.py` | Shared TTL disk cache for OHLCV (import only; `--no-cache` to bypass) |
 | `stock_screener.py` | This script — individual stock technicals |
 | `nine_rules_gate.py` | Nine-rules analysis on the exported watchlist |
 | `nine_rules_independent.py` | Independent re-score of core ∪ watchlist |

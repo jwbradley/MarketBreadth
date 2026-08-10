@@ -7,6 +7,43 @@ Versions are informal tags for a personal/public toolkit (not necessarily PyPI r
 
 ---
 
+## [2.5.0] — 2026-08-10
+
+### Added — large-cap earnings coverage
+
+- **`earnings_expected_move.py --include-large-caps BILLIONS`**: *adds* non-index calendar names with a **known** market cap ≥ the floor (e.g. `10` → $10B+) to the default S&P 500 ∪ watchlist universe. Does **not** replace the universe (unlike `--all-calendar`). Unknown-cap SPACs/blank-check shells score as 0 and stay out — deliberate asymmetry vs `--min-market-cap`, which keeps unknowns.
+- Typical 3-session window goes from ~9 rows to ~33 (e.g. RKLB, CRWV, NBIS, SE, ASTS) without dropping small S&P/watchlist reporters.
+- With `--all-calendar`, the flag is a no-op (warns; use `--min-market-cap` instead).
+
+### Added — shared disk cache
+
+- **`market_cache.py`**: TTL'd on-disk cache for OHLCV (parquet, closed bars only), Nasdaq earnings calendar, and realized earnings-move history. Wired into `stock_screener.py`, `nine_rules_gate.py`, `nine_rules_independent.py`, and `earnings_expected_move.py`.
+- Cuts repeated SPY fetches (was 4× per batch), Nasdaq calendar hits (was 3× per scan), and `realized_earnings_moves()` double round-trips after the larger earnings universe.
+- CLI: `python3 market_cache.py --stats | --purge | --purge-all`.
+- Per-tool bypass: `--no-cache`. Process-wide: `MARKET_CACHE_DISABLE=1`. Root override: `MARKET_CACHE_DIR`.
+- Docs: [README-market_cache.md](README-market_cache.md).
+
+### Orchestration
+
+- **`getStockScreenerData.bat`** and **`getTodaysStockScreenerData.sh`**: earnings step is now  
+  `earnings_expected_move.py --briefing --include-large-caps 10`  
+  so daily logs include large non-index reporters (the flag existed earlier but was not wired into the runners).
+
+### Documentation
+
+- Main [README.md](README.md), [BEST_PRACTICES.md](BEST_PRACTICES.md), [README-earnings_expected_move.md](README-earnings_expected_move.md), screener/nine-rules READMEs, and [INTERPRETATION_GUIDE.md](INTERPRETATION_GUIDE.md) updated for cache + large-caps.
+- `.gitignore`: ignore `.market_cache/`.
+
+---
+
+## [2.4.1] — 2026-08-08
+
+### Documentation
+
+- Added **[INTERPRETATION_GUIDE.md](INTERPRETATION_GUIDE.md)**: end-to-end guide for reading `logs/todaysMarketBreadth.log`, companion logs, and JSON snapshots (breadth, opportunities, screener tables, nine-rules gate/EM, independent scan, earnings straddle). Linked from main README and BEST_PRACTICES.
+
+---
+
 ## [2.4.0] — 2026-08-07
 
 ### Screener takeaways (two-axis scoring)

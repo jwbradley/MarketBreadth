@@ -105,14 +105,34 @@ Still:
 
 - Screener tags names reporting within 7 calendar days (`ER+Nd`).
 - `earnings_expected_move.py --briefing` prices ATM straddles on the **first expiry after the report** (not the nearest pre-earnings expiry).
+- Daily runners pass **`--include-large-caps 10`**: S&P 500 + watchlist **plus** non-index names with a **known** market cap ≥ $10B. That is how RKLB-class reporters appear without dumping SPACs into the table.
+  - Do **not** replace this with `--all-calendar --min-market-cap 10` — that drops small index names and admits unknown-cap blank-check shells.
+  - Manual default (flag omitted) still yields only universe names (~9 rows).
 - **RICH / CHEAP** is context vs history, not a trade signal. Install **`lxml`** in the active venv or Hist Avg / Verdict show `N/A`.
 - Prefer live options quotes when possible; pre-open runs often show STALE / WIDE quality.
+- Expect a longer earnings step after large-caps (~3–4 min cold vs ~30s for ~9 names); warm `market_cache` helps on re-runs.
 
 Details: [README-earnings_expected_move.md](README-earnings_expected_move.md).
 
 ---
 
-## 9. Orchestration (Linux shell vs Windows batch)
+## 9. Shared disk cache
+
+The four analysis tools share **`market_cache.py`** so SPY bars, the Nasdaq calendar, and earnings history are not re-fetched four times in one batch.
+
+| Concern | Guidance |
+|---------|----------|
+| Default | Cache **on** under `$DATA_DIR/.market_cache/` |
+| Still-forming bar | **Never** cached — only closed daily bars (partial-bar rule for TA) |
+| Force refresh | `--no-cache` on the tool, or `MARKET_CACHE_DISABLE=1` |
+| Housekeeping | `python3 market_cache.py --stats` / `--purge` / `--purge-all` |
+| Requirements | `pyarrow` for OHLCV parquet; JSON namespaces work without it |
+
+Do not treat cache hits as a reason to skip a post-close run; TTLs are hours, not days. Full design: [README-market_cache.md](README-market_cache.md).
+
+---
+
+## 10. Orchestration (Linux shell vs Windows batch)
 
 Keep orchestrators thin; keep Python modules separate (Option C).
 
@@ -133,7 +153,7 @@ Suggested report order (already in both runners):
 4. Full screener briefing  
 5. Nine-rules gate (`--briefing`)  
 6. Independent nine-rules scan (`nine_rules_independent.py --union-watchlist`)  
-7. **Earnings expected move** (`earnings_expected_move.py --briefing`)  
+7. **Earnings expected move** (`earnings_expected_move.py --briefing --include-large-caps 10`)  
 
 Linux: non-zero exit count from the shell script means at least one step failed—wire that to monitoring if you care about uptime. Windows: open the configured log and confirm every “Running:” step completed.
 
@@ -143,7 +163,7 @@ On many Windows installs, Python 3.12 writes stdout as **cp1252**. Characters ou
 
 ---
 
-## 10. Risk management outside the scripts
+## 11. Risk management outside the scripts
 
 These tools **do not**:
 
@@ -156,30 +176,31 @@ Use `risk_pct`, ATR metrics, and liquidity as **inputs** to your own risk rules.
 
 ---
 
-## 11. Data hygiene
+## 12. Data hygiene
 
 - Refresh constituents if the list is stale (`market_breadth_collector.py --update-constituents`).
-- Do not commit large history JSON/CSV or personal logs to a public repo (see `.gitignore`).
-- Respect Yahoo Finance (and any other provider) rate limits and terms of service.
+- Do not commit large history JSON/CSV, personal logs, or `.market_cache/` to a public repo (see `.gitignore`).
+- Respect Yahoo Finance (and any other provider) rate limits and terms of service — the shared cache reduces redundant hits.
 - Re-run after holidays; empty or weekend data is expected to look odd.
 
 ---
 
-## 12. Validation before trusting a change
+## 13. Validation before trusting a change
 
 After editing indicators or scores:
 
-1. `python3 -m py_compile ta_indicators.py stock_screener.py nine_rules_gate.py nine_rules_independent.py market_breadth_collector.py earnings_expected_move.py`
+1. `python3 -m py_compile ta_indicators.py market_cache.py stock_screener.py nine_rules_gate.py nine_rules_independent.py market_breadth_collector.py earnings_expected_move.py`
 2. Run breadth collect once.
 3. Run screener on one sector (`--sector "Utilities" --top-stocks 5`).
 4. Confirm `rules_passed` on the same ticker matches between screener output and `nine_rules_gate.py`.
 5. Spot-check a few labels against the setup/entry table (e.g. setup 90 / entry 50 → `BUY / SCALE IN`, not `BUY NOW`).
-6. On Windows: redirect a briefing to a file and confirm no `UnicodeEncodeError`.
-7. Only then run the full daily script (`.sh` or `.bat`).
+6. Spot-check earnings: `earnings_expected_move.py --briefing --include-large-caps 10` should add known large non-index names without SPAC shells; default (no flag) should match the smaller universe.
+7. On Windows: redirect a briefing to a file and confirm no `UnicodeEncodeError`.
+8. Only then run the full daily script (`.sh` or `.bat`).
 
 ---
 
-## 13. What not to do
+## 14. What not to do
 
 - Do not treat setup 100, entry 100, or “STRONG BUY” as certainty.
 - Do not average contradictory systems (mean-reversion + trend) into one action without labeling the thesis.
@@ -194,9 +215,11 @@ After editing indicators or scores:
 | Doc | Purpose |
 |-----|---------|
 | [README.md](README.md) | Project overview and pipeline |
+| [INTERPRETATION_GUIDE.md](INTERPRETATION_GUIDE.md) | How to read the daily log and output files |
 | [README-stock_screener.md](README-stock_screener.md) | Screener details |
 | [README-nine_rules.md](README-nine_rules.md) | Nine rules tools |
 | [README-ta_indicators.md](README-ta_indicators.md) | Shared indicator library |
+| [README-market_cache.md](README-market_cache.md) | Shared TTL disk cache |
 | [README-earnings_expected_move.md](README-earnings_expected_move.md) | Earnings straddle report |
 | [DISCLAIMER.md](DISCLAIMER.md) | Legal / risk disclaimer |
 | [CHANGELOG.md](CHANGELOG.md) | Version history |

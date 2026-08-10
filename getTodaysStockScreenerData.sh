@@ -143,9 +143,11 @@ mkdir -p "$(dirname "$NR_INDEP_LOG")"
 } >> "$LOG_FILE"
 
 # Earnings calendar expected move (straddle/IV around report dates).
-# Matches getStockScreenerData.bat: earnings_expected_move.py --briefing
-run_report "earnings_expected_move --briefing" \
-  $VENV_PYTHON MarketBreadth/earnings_expected_move.py --briefing
+# Matches getStockScreenerData.bat: --briefing --include-large-caps 10
+# --include-large-caps ADDS non-index names with a known cap >= $10B (RKLB, etc.)
+# without replacing the S&P 500 + watchlist universe (unlike --all-calendar).
+run_report "earnings_expected_move --briefing --include-large-caps 10" \
+  $VENV_PYTHON MarketBreadth/earnings_expected_move.py --briefing --include-large-caps 10
 
 # End marker
 {

@@ -95,6 +95,7 @@ python3 nine_rules_gate.py --watchlist /path/to/my_watchlist.json
 ```bash
 python3 nine_rules_gate.py --verbose
 python3 nine_rules_gate.py --no-expected-move
+python3 nine_rules_gate.py --no-cache          # bypass shared OHLCV disk cache
 ```
 
 ---
@@ -116,6 +117,9 @@ python3 nine_rules_independent.py --watchlist-only --verbose
 # Ad-hoc
 python3 nine_rules_independent.py --tickers SMCI ARM TSM
 python3 nine_rules_independent.py --file my_tickers.txt
+
+# Bypass shared OHLCV disk cache (soft-imported; safe if market_cache is absent)
+python3 nine_rules_independent.py --union-watchlist --no-cache
 ```
 
 Daily runners write the independent report to `logs/nine_rules_independent.log`.
@@ -189,6 +193,8 @@ If counts differ, re-run the screener watchlist after a code change and confirm 
 | Default | Summary table + signal distribution |
 | `--briefing` | Markdown table for daily logs |
 | `--verbose` | Per-rule pass/fail details |
+| `--no-expected-move` | Skip ATM IV / expected-move options fetch |
+| `--no-cache` | Bypass shared OHLCV disk cache ([README-market_cache.md](README-market_cache.md)) |
 
 The daily orchestrators (`getTodaysStockScreenerData.sh` / `getStockScreenerData.bat`) append `nine_rules_gate.py --briefing` after screener opportunities, then run `nine_rules_independent.py` for an independent re-score.
 
@@ -210,8 +216,10 @@ For day-to-day workflow tips: [BEST_PRACTICES.md](BEST_PRACTICES.md).
 |--------|---------|
 | `market_breadth_collector.py` | Breadth for rules 3–4 |
 | `stock_screener.py` | Scores + watchlist |
-| `ta_indicators.py` | Shared math |
+| `ta_indicators.py` | Shared TA math |
+| `market_cache.py` | Shared TTL OHLCV cache (soft import in independent) |
 | `nine_rules_independent.py` | Independent re-score + core∪watchlist overlap |
+| `earnings_expected_move.py` | Earnings straddle report (separate from nearest-expiry EM) |
 | `getTodaysStockScreenerData.sh` | Cron pipeline (Linux/macOS) |
 | `getStockScreenerData.bat` | Task Scheduler pipeline (Windows) |
 

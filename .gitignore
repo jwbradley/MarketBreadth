@@ -6,6 +6,9 @@ market_breadth_history.csv
 stock_screener_results.csv
 sp500_constituents.csv
 
+# Shared TTL disk cache (OHLCV parquet, Nasdaq calendar, earnings history)
+.market_cache/
+
 # Python
 __pycache__/
 *.py[cod]
