@@ -22,6 +22,7 @@ Usage:
   python3 earnings_expected_move.py                        # Next 3 sessions, S&P500 + watchlist
   python3 earnings_expected_move.py --sessions 2           # Only next 2 sessions
   python3 earnings_expected_move.py --tickers PLTR VRTX    # Ad-hoc tickers
+  python3 earnings_expected_move.py --include-large-caps 10  # + non-index names >= $10B
   python3 earnings_expected_move.py --all-calendar         # Skip universe filter
   python3 earnings_expected_move.py --briefing             # Markdown for the log
   python3 earnings_expected_move.py --no-history           # Skip realized-move lookback
@@ -942,6 +943,7 @@ Examples:
   Next 3 sessions:        python3 earnings_expected_move.py
   Next 2 sessions:        python3 earnings_expected_move.py --sessions 2
   Specific tickers:       python3 earnings_expected_move.py --tickers PLTR VRTX
+  Add big non-index:      python3 earnings_expected_move.py --include-large-caps 10
   Whole calendar:         python3 earnings_expected_move.py --all-calendar
   Markdown briefing:      python3 earnings_expected_move.py --briefing
   Faster (no history):    python3 earnings_expected_move.py --no-history
@@ -955,6 +957,12 @@ Examples:
     parser.add_argument(
         '--all-calendar', action='store_true',
         help='Do not filter to S&P 500 + watchlist',
+    )
+    parser.add_argument(
+        '--include-large-caps', type=float, default=0.0, metavar='BILLIONS',
+        help='Also include non-index names with a known market cap >= this many '
+             'billions (e.g. 10). Adds to the S&P 500 + watchlist universe rather '
+             'than replacing it, unlike --all-calendar. Default 0 = off.',
     )
     parser.add_argument(
         '--min-market-cap', type=float, default=0.0,
@@ -976,6 +984,17 @@ Examples:
     if args.sessions < 1:
         print('ERROR: --sessions must be >= 1', file=sys.stderr)
         sys.exit(2)
+
+    if args.include_large_caps < 0:
+        print('ERROR: --include-large-caps must be >= 0', file=sys.stderr)
+        sys.exit(2)
+
+    if args.include_large_caps > 0 and args.all_calendar:
+        print(
+            'WARNING: --include-large-caps has no effect with --all-calendar '
+            '(no universe filter to add to); use --min-market-cap instead.',
+            file=sys.stderr,
+        )
 
     sessions = upcoming_sessions(args.sessions)
     sector_map = load_sp500()
@@ -1016,7 +1035,35 @@ Examples:
                     file=sys.stderr,
                 )
             else:
-                entries = [e for e in entries if e['ticker'] in universe]
+                # --include-large-caps ADDS to the universe rather than replacing it
+                # (which is what --all-calendar does): a $40B non-index name like RKLB
+                # is worth pricing, but not at the cost of dropping a small S&P or
+                # watchlist name that reports the same week.
+                #
+                # A cap of None does NOT qualify here, unlike --min-market-cap below.
+                # That floor is a safety net over an already-vetted universe, so letting
+                # unknowns through is harmless; here the cap IS the admission test, and
+                # the names Nasdaq reports no cap for are SPACs and blank-check shells.
+                cap_floor = (
+                    args.include_large_caps * 1e9 if args.include_large_caps > 0 else None
+                )
+                in_universe, added = [], []
+                for e in entries:
+                    if e['ticker'] in universe:
+                        in_universe.append(e)
+                    elif cap_floor is not None and (e.get('market_cap') or 0) >= cap_floor:
+                        added.append(e)
+                entries = in_universe + added
+                if added:
+                    print(
+                        f"  (+{len(added)} non-index name(s) with cap >= "
+                        f"${args.include_large_caps:g}B)",
+                        file=sys.stderr,
+                    )
+                    if args.verbose:
+                        for e in sorted(added, key=lambda x: -(x.get('market_cap') or 0)):
+                            print(f"    {e['ticker']:8s} "
+                                  f"${(e['market_cap'] or 0) / 1e9:7.1f}B  {e['company'][:40]}")
         if args.min_market_cap > 0:
             floor = args.min_market_cap * 1e9
             entries = [
